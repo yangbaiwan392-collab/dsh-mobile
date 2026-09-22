@@ -56,6 +56,12 @@ SH
 chmod +x "$SCRIPT_DIR/start-dsh.sh"
 
 # ---------- 装依赖 ----------
+# 预检：Termux 滚动仓库常处于"升级了一半"的状态（新 libcurl + 旧 openssl 会让 curl 崩：
+# CANNOT LINK EXECUTABLE ... SSL_set_quic_tls_early_data_enabled），届时 pkg/npm 会连锁失败。
+if ! curl --version >/dev/null 2>&1; then
+  echo "!! curl 无法运行：请先执行  apt update && apt full-upgrade -y  再重跑本脚本。"
+  exit 1
+fi
 echo "==> 更新包索引"
 pkg update -y >/dev/null
 echo "==> 安装 curl / openssh / termux-api"

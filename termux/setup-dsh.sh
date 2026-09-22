@@ -11,6 +11,19 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
+# ---------- 预检：Termux 的滚动仓库很容易处于"升级了一半"的状态 ----------
+# 真实案例（2026-09-22 真机）：安装时升级了 curl/libcurl 8.12→8.22，但 openssl 没跟着升
+# （apt 提示 "72 not upgraded"），于是 curl 报：
+#   CANNOT LINK EXECUTABLE "curl": cannot locate symbol "SSL_set_quic_tls_early_data_enabled"
+# 这种情况下 pkg 的镜像自检、nodejs 安装都会连锁失败 —— 必须先整体升级，而不是继续装。
+if ! curl --version >/dev/null 2>&1; then
+  echo "!! curl 无法运行：Termux 的包很可能升级了一半（例如新 libcurl 配旧 openssl）。"
+  echo "   请先执行："
+  echo "       apt update && apt full-upgrade -y"
+  echo "   跑完用 'curl --version' 确认正常，再重新执行本脚本。"
+  exit 1
+fi
+
 echo "==> 更新包索引"
 pkg update -y >/dev/null
 
