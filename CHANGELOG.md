@@ -3,6 +3,20 @@
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)；`0.x` 期间接口与 UI 仍可能变动。
 带 ★ 的条目是**真机踩出来的**问题 —— 记在这里是为了让下一个人少走一遍。
 
+## [Unreleased]
+
+### 新增
+- `termux/phone-bootstrap.sh`：**自包含引导**（贴进 Termux 即可跑，不需要 `/sdcard` 授权、不需要 MTP 传文件），
+  它会自己写出 `~/dsh-android/start-dsh.sh`，因此 app 里的「启动 DSH」按钮随后仍可用。
+
+### 修复
+- ★ **Termux "升级了一半"导致 curl 崩溃**：`pkg install` 升级了 `curl`/`libcurl` 但 `openssl` 未同步
+  （apt 提示 `N not upgraded`）→ `CANNOT LINK EXECUTABLE "curl": cannot locate symbol "SSL_set_quic_tls_early_data_enabled"`，
+  连锁使镜像自检与 `nodejs` 安装全部失败。两个脚本现在都有**预检**：检测到 curl 不可用就停下并打印
+  `apt update && apt full-upgrade -y`，不再继续。
+- `tools/test-termux-scripts.sh` 扩到 **4 个用例 / 19 项**：新增"自包含引导"与"curl 崩溃预检"回归；
+  并修正 curl 桩必须支持 `--version`（预检会调用它）。
+
 ## [0.1.2] — 2026-09-22
 
 ### 修复

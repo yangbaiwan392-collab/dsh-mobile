@@ -303,6 +303,30 @@ Termux 官方在 GitHub 发布 APK，且附 sha256 校验文件，用 PC 下好�
 </details>
 
 <details>
+<summary><b>Termux 里 <code>curl</code> 崩了 / <code>pkg</code> 装不上包（"升级了一半"）</b></summary>
+
+真机案例：`pkg install` 时升级了 `curl`/`libcurl`（8.12→8.22），但 `openssl` 没跟着升
+（apt 会提示 `72 not upgraded`），于是：
+
+```
+CANNOT LINK EXECUTABLE "curl": cannot locate symbol "SSL_set_quic_tls_early_data_enabled"
+Failed to run the 'curl' command.
+```
+
+Termux 是滚动仓库，这种"半升级"状态很常见，连锁后果是 `pkg` 的镜像自检、`nodejs` 安装全失败。
+**修法**（Termux 官方提示的也是这条）：
+
+```bash
+apt update && apt full-upgrade -y
+curl --version          # 应打印版本号而不是报错
+bash ~/dsh-android/setup-dsh.sh
+```
+
+`termux/setup-dsh.sh` 与 `phone-bootstrap.sh` 已内置预检：检测到 `curl` 不可用时会**直接停下并打印上面这条命令**，
+而不是继续往下装（`tools/test-termux-scripts.sh` 用例 4 就是这条回归）。
+</details>
+
+<details>
 <summary><b>手机上的 DSH 起不来 / 后台被冻结</b></summary>
 
 Android 13 后台限制很凶：`setup-dsh.sh` 会 `termux-wake-lock` 拿唤醒锁；
