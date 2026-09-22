@@ -350,6 +350,35 @@ bash ~/dsh-android/fix-android-runtime.sh    # app 的「启动手机上的 DSH�
 </details>
 
 <details>
+<summary><b>点开「手机本地」打不开 / 连不上（昨天还能用）</b></summary>
+
+多半是 **Termux 里的 DSH 进程被系统回收了**（Android 的后台清理很凶；唤醒锁也会随进程消失）。
+判据：`curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3080/` 得到 `000`（连不上），
+而 app 里存的 token 与 `~/.dsh-web.log` 里那行一致（说明不是 token 过期）。
+
+**处理**：回 app 菜单点一次「启动手机上的 DSH」即可 —— 这条流程现在是**自愈**的：
+写脚本 → 修 Android 运行时（必要时在手机上现编 flock 原生模块）→ 启动服务 → 把新入口地址经剪贴板交回来。
+
+**预防**：把 Termux 加入电池优化白名单（一条命令，不需要 root）：
+
+```powershell
+adb shell dumpsys deviceidle whitelist +com.termux
+```
+</details>
+
+<details>
+<summary><b>手机上的 agent 不执行 shell 命令 / 说"没有可用的沙箱后端"</b></summary>
+
+Android 手机的内核普遍是 5.10（本机实测 `Linux 5.10.218-android…`），
+而 DSH 用的 **Landlock** 需要 ≥5.13，且 `/sys/kernel/security/landlock` 不存在 ——
+所以 `workspace-write` 之类"带沙箱"的模式在这台机器上**没有后端可用，shell 一律被拒**。
+
+要用它跑命令，只能把该会话/预置的沙箱模式设为 **`danger-full-access`**
+（即在 app 内的 DSH 设置里放宽）—— 这等于让手机上的 agent 能直接执行命令，
+**请自己权衡**（本项目对这条的态度写在 `SECURITY.md`）。
+</details>
+
+<details>
 <summary><b>点「启动手机上的 DSH」提示缺权限 / Termux 没接住请求</b></summary>
 
 本 app 需要 Termux 定义的运行时权限 `com.termux.permission.RUN_COMMAND`（系统描述是
