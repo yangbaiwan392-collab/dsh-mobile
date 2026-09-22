@@ -150,5 +150,6 @@ check "没有继续往下装依赖" "0" "$(printf '%s' "$OUT4" | grep -c '安装
 # ---------- 汇总 ----------
 echo
 echo "通过 $pass 项，失败 $fail 项"
+echo "（配方单一事实源：tools/verify-install-recipe.sh 会打印并验证手机上要粘的那一行）"
 rm -rf "$TMP"
 [ "$fail" -eq 0 ]

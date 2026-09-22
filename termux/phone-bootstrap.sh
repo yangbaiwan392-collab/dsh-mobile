@@ -1,11 +1,14 @@
-#!/usr/bin/env bash
-# 手机端**自包含引导**（贴进 Termux 就能跑，不依赖 /sdcard 权限、不需要 MTP 拷文件）。
+#!/data/data/com.termux/files/usr/bin/bash
+# 手机端**自包含引导**（不依赖 /sdcard 权限）。
 #
-# 为什么存在：`termux-setup-storage` 的授权对话框很容易被错过，导致 ~/storage/downloads 不存在、
-# cp 报 "No such file or directory"。本脚本自己写出 ~/dsh-android/start-dsh.sh，
-# 因此 app 里的「启动手机上的 DSH」按钮（按这个路径调用）随后也能用。
+# ⚠ 不要把这个文件"整段复制粘贴"进 Termux —— 它内部有两个 heredoc，
+#   多行粘贴在 Termux 里会被截断（真机踩过：cat 写出 0 字节文件 → npm EJSONPARSE）。
+#   正确用法二选一：
+#     · 用 MTP 把它当**文件**拷进手机，再 `bash ~/storage/downloads/phone-bootstrap.sh`
+#     · 或不要用它，改为按 README FAQ 里的**单行命令**手工装（那行是单行，粘贴安全）
 #
-# 用法：把本文件内容整段粘进 Termux（或 bash phone-bootstrap.sh）
+# 它做四件事：写出 ~/dsh-android/start-dsh.sh（因此 app 的「启动手机上的 DSH」按钮可用）
+# → 装依赖 → 装 DSH（含绕开上游坏发布的 overrides 配方）→ 拿唤醒锁并启动。
 set -euo pipefail
 
 SCRIPT_DIR="$HOME/dsh-android"
