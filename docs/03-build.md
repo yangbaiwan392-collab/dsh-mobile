@@ -165,6 +165,7 @@ E:\Android\Sdk\platform-tools\adb.exe install <仓库目录>\dist\dsh-mobile-0.1
 
 **已验证（本机，可复现）**
 
+- **真机**：v0.1.2 在 **moto g54（Android 13）** 上安装成功并**正常启动、无报错**（用户实测确认）
 - 工具链：`java 17.0.20.1` / `aapt2 2.19` / `adb 1.0.41` / `gradle 8.11.1` / `sdkmanager 12.0`
 - 纯逻辑与契约单测：**25 个全过**（Endpoint 7 / ProfileStore 6 / TokenExchange 4 / TunnelGuidance 4 / ManifestContract 4）
 - 构建：`assembleDebug` BUILD SUCCESSFUL
@@ -176,7 +177,7 @@ E:\Android\Sdk\platform-tools\adb.exe install <仓库目录>\dist\dsh-mobile-0.1
 
 **未验证（需要你的手机 / 需要你点几下）**
 
-- **v0.1.1 在真机上能否正常启动**（v0.1.0 的闪退根因已定位并修掉、且加了守卫，但我没有设备能复跑一遍）
-- Termux 侧的 `setup-dsh.sh` / 唤醒锁 / `am start` 回传（同上，只能在手机上跑）
+- 模式 A 全链路（Termux 里真正跑 `setup-dsh.sh`；脚本已用桩命令在本机跑通，但没在真 Termux 里跑过）
+- WebView 里的 DSH 界面细节：软键盘、横竖屏、文件上传/下载、长会话滚动
 - 真机上 WebView 里的 DSH 界面表现（软键盘、横竖屏、文件上传下载）
 - release 签名（当前只有 debug 签名；要发布得自己生成 keystore）
