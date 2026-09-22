@@ -13,7 +13,8 @@
 set -uo pipefail
 
 JSON='{"name":"dsh-install","private":true,"dependencies":{"@deepseek-ai/dsh":"0.1.5-rc.2"},"overrides":{"@deepseek-ai/dsh-client-ui-sidebar":"0.1.5-rc.2","@deepseek-ai/dsh-client-ui-sidebar-documentpreview":"0.1.5-rc.2","@deepseek-ai/dsh-web-app":"0.1.5-rc.2","@deepseek-ai/dsh-client-ui-chat":"0.1.5-rc.2"},"allowScripts":{"node-pty":true,"@deepseek-ai/dsh-subprocess-local":true,"koffi":true,"protobufjs":true}}'
-RECIPE="mkdir -p ~/dsh-install && cd ~/dsh-install && rm -f ~/package.json && echo '$JSON' > package.json && npm install --no-audit --no-fund && ln -sf \"\$HOME/dsh-install/node_modules/.bin/dsh\" \"\$PREFIX/bin/dsh\" 2>/dev/null; hash -r; dsh --version"
+# 用 `;` 而不是 `&&` 串起最后几步：即使 rebuild 报错，也要把"产物在不在"打出来（一次粘贴拿全证据）
+RECIPE="mkdir -p ~/dsh-install && cd ~/dsh-install && rm -f ~/package.json && echo '$JSON' > package.json && npm install --no-audit --no-fund && npm rebuild node-pty @deepseek-ai/dsh-subprocess-local --foreground-scripts; ln -sf \"\$HOME/dsh-install/node_modules/.bin/dsh\" \"\$PREFIX/bin/dsh\"; hash -r; dsh --version; ls -l ~/dsh-install/node_modules/node-pty/build/Release/pty.node"
 
 TMP="$(mktemp -d)"
 cd "$TMP"

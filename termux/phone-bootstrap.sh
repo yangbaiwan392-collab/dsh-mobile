@@ -109,6 +109,13 @@ cat > "$INSTALL_DIR/package.json" <<'JSON'
 }
 JSON
 ( cd "$INSTALL_DIR" && npm install --no-audit --no-fund )
+# up-to-date 快路径会跳过 install 脚本 → 显式确认 node-pty 的编译产物
+PTY_NODE="$INSTALL_DIR/node_modules/node-pty/build/Release/pty.node"
+if [ ! -f "$PTY_NODE" ]; then
+  echo "==> node-pty 编译产物不在，显式重编"
+  ( cd "$INSTALL_DIR" && npm rebuild node-pty @deepseek-ai/dsh-subprocess-local --foreground-scripts )
+fi
+[ -f "$PTY_NODE" ] || { echo "!! node-pty 仍未编出：把上面的编译错误发出来"; exit 1; }
 command -v dsh >/dev/null 2>&1 || {
   # 不用 npm link <包名>：它会回 registry 重新解析，必然再撞上游坏依赖
   ln -sf "$INSTALL_DIR/node_modules/.bin/dsh" "$PREFIX/bin/dsh" 2>/dev/null || true

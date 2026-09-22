@@ -83,6 +83,17 @@ cat > "$INSTALL_DIR/package.json" <<'JSON'
 }
 JSON
 ( cd "$INSTALL_DIR" && npm install --no-audit --no-fund )
+
+# npm 的 "up to date" 快路径会**跳过**已装包的 install 脚本 —— 所以显式确认 node-pty 的
+# 编译产物在不在，不在就 rebuild（这一步是"验证而不是假设"：dsh --version 不加载 node-pty，
+# 看不出来；但 dsh-subprocess-local 顶层 import 它，缺了 DSH 起不来）。
+PTY_NODE="$INSTALL_DIR/node_modules/node-pty/build/Release/pty.node"
+if [ ! -f "$PTY_NODE" ]; then
+  echo "==> node-pty 编译产物不在（可能被 up-to-date 快路径跳过），显式重编"
+  ( cd "$INSTALL_DIR" && npm rebuild node-pty @deepseek-ai/dsh-subprocess-local --foreground-scripts )
+fi
+[ -f "$PTY_NODE" ] || { echo "!! node-pty 仍未编出：把上面的编译错误发出来"; exit 1; }
+echo "    node-pty 编译产物 ✓"
 npm link @deepseek-ai/dsh >/dev/null 2>&1 || true
 if ! command -v dsh >/dev/null 2>&1; then
   echo "    （npm link 未生效，改用 PATH 方式）"
