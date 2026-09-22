@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# 用桩命令在本机**真跑** termux/start-dsh.sh，验证它：
-#   ① 语法能过；② 能从 dsh 的输出里正确摘出带 token 的 URL；
-#   ③ 递给 app 的组件名/extra 键与 Android 侧一致（这是最容易写错、且在手机上会静默失败的一环）。
+# 用桩命令在本机**真跑** termux/ 下的脚本，验证：
+#   ① 语法能过；
+#   ② 从 dsh 的真实输出里正确摘出带 token 的 URL（不吃 "(LAN: …)" 尾巴）；
+#   ③ 递给 app 的组件名/extra 键与 Android 侧一致（最易写错、且在手机上会静默失败的一环）；
+#   ④ "服务已在跑"时走复用分支、不重启；
+#   ⑤ 自包含引导能自己写出 start-dsh.sh 并跑通；
+#   ⑥ curl 因"包升级了一半"而崩时，预检会拦住并给出修复命令。
 #
 # 为什么需要：本机没有 Termux、也没有已注册的 WSL 发行版，手机是第一次真跑；
 # 这个脚本把"能不能跑通"提前到本机，用 Git for Windows 自带的 bash 执行。
@@ -11,6 +15,8 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 START_SH="$ROOT/termux/start-dsh.sh"
+SETUP_SH="$ROOT/termux/setup-dsh.sh"
+BOOT_SH="$ROOT/termux/phone-bootstrap.sh"
 TMP="$(mktemp -d)"
 STUB="$TMP/bin"
 mkdir -p "$STUB" "$TMP/home"
@@ -26,7 +32,7 @@ check() { # check <描述> <期望> <实际>
   fi
 }
 
-# ---------- 桩命令 ----------
+# ---------- 公共桩 ----------
 # dsh：按 DSH 真实格式打印一行（带 LAN 尾巴，用来验证摘取逻辑不被尾巴干扰）
 cat > "$STUB/dsh" <<'EOF'
 #!/usr/bin/env bash
@@ -40,6 +46,10 @@ cat > "$STUB/termux-clipboard-set" <<EOF
 #!/usr/bin/env bash
 cat > "$TMP/clipboard.txt"
 EOF
+cat > "$STUB/termux-wake-lock" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
 cat > "$STUB/nohup" <<'EOF'
 #!/usr/bin/env bash
 exec "$@"
@@ -48,9 +58,37 @@ cat > "$STUB/sleep" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
+cat > "$STUB/pkg" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$STUB/node" <<'EOF'
+#!/usr/bin/env bash
+echo v22.0.0
+EOF
+cat > "$STUB/npm" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "config" ]; then echo "https://registry.npmmirror.com"; fi
+exit 0
+EOF
+
+# curl 桩：**必须同时支持 `--version`（预检会调它）**与"服务是否在跑"的探测。
+# $1 为 up/down 控制探测结果；写成 make_curl up 或 make_curl down。
+make_curl() {
+  local mode="$1"
+  local probe_exit=7
+  [ "$mode" = "up" ] && probe_exit=0
+  cat > "$STUB/curl" <<EOF
+#!/usr/bin/env bash
+case "\$1" in
+  --version) echo "curl 8.22.0"; exit 0 ;;
+  *) exit $probe_exit ;;
+esac
+EOF
+  chmod +x "$STUB/curl"
+}
 chmod +x "$STUB"/*
 export PATH="$STUB:$PATH"
-unset NOHUP 2>/dev/null || true
 
 # ---------- 语法检查 ----------
 echo "语法检查（bash -n）："
@@ -61,12 +99,9 @@ done
 
 # ---------- 用例 1：服务没在跑 → 启动分支 ----------
 echo
-echo "用例 1：服务未运行（curl 桩返回非零）→ 应启动并摘出 URL"
-cat > "$STUB/curl" <<'EOF'
-#!/usr/bin/env bash
-exit 7
-EOF
-chmod +x "$STUB/curl"
+echo "用例 1：服务未运行 → 应启动并摘出 URL"
+make_curl down
+rm -f "$TMP/am.calls" "$TMP/clipboard.txt" "$TMP/home/.dsh-web.log"
 OUT="$(bash "$START_SH" 3099 2>&1)"
 check "退出码 0" "0" "$?"
 check "摘出的 URL（不吃 LAN 尾巴）" "APP_URL=http://127.0.0.1:3099/?token=TESTTOKEN123" "$(printf '%s' "$OUT" | tail -n 1)"
@@ -75,56 +110,42 @@ check "URL 也进了剪贴板" "http://127.0.0.1:3099/?token=TESTTOKEN123" "$(ca
 
 # ---------- 用例 2：服务已在跑 → 复用分支 ----------
 echo
-echo "用例 2：服务已在运行（curl 桩返回 0）→ 应复用日志里的 URL，不重启"
-cat > "$STUB/curl" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
-chmod +x "$STUB/curl"
+echo "用例 2：服务已在运行 → 应复用日志里的 URL，不重启"
+make_curl up
 rm -f "$TMP/am.calls"
 OUT2="$(bash "$START_SH" 3099 2>&1)"
 check "退出码 0" "0" "$?"
 check "提示复用" "1" "$(printf '%s' "$OUT2" | grep -c '已有服务在跑')"
 check "仍然给出 APP_URL" "APP_URL=http://127.0.0.1:3099/?token=TESTTOKEN123" "$(printf '%s' "$OUT2" | tail -n 1)"
 
-# ---------- 用例 3：自包含引导（无需存储权限）能自己写出 start-dsh.sh 并跑通 ----------
+# ---------- 用例 3：自包含引导能自己写出 start-dsh.sh 并跑通 ----------
 echo
 echo "用例 3：phone-bootstrap.sh 自包含引导（不依赖 /sdcard 授权）"
-cat > "$STUB/pkg" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
-cat > "$STUB/npm" <<'EOF'
-#!/usr/bin/env bash
-if [ "$1" = "config" ]; then echo "https://registry.npmmirror.com"; fi
-exit 0
-EOF
-cat > "$STUB/node" <<'EOF'
-#!/usr/bin/env bash
-echo v22.0.0
-EOF
-cat > "$STUB/dsh" <<'EOF'
-#!/usr/bin/env bash
-echo "dsh web: http://127.0.0.1:3099/?token=BOOTTOKEN (LAN: http://192.168.0.105:3099/?token=BOOTTOKEN)"
-EOF
-cat > "$STUB/termux-wake-lock" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
-chmod +x "$STUB"/*
-# 清掉上一用例留下的日志与"服务已在跑"状态，让它真正走"启动"分支
+make_curl down
 rm -rf "$TMP/home/dsh-android" "$TMP/am.calls" "$TMP/home/.dsh-web.log"
-cat > "$STUB/curl" <<'EOF'
-#!/usr/bin/env bash
-exit 7
-EOF
-chmod +x "$STUB/curl"
-OUT3="$(bash "$ROOT/termux/phone-bootstrap.sh" 2>&1)"
+OUT3="$(bash "$BOOT_SH" 2>&1)"
 check "退出码 0" "0" "$?"
 check "自己写出了 start-dsh.sh" "yes" "$([ -f "$TMP/home/dsh-android/start-dsh.sh" ] && echo yes || echo no)"
-check "写出的脚本语法正确" "0" "$(bash -n "$TMP/home/dsh-android/start-dsh.sh"; echo $?)"
-check "引导过程拿到 APP_URL" "APP_URL=http://127.0.0.1:3099/?token=BOOTTOKEN" "$(printf '%s' "$OUT3" | tail -n 1)"
-check "引导过程也把地址递给了 app" "start -n app.dsh.mobile/.ui.MainActivity -e dsh_url http://127.0.0.1:3099/?token=BOOTTOKEN" "$(cat "$TMP/am.calls" 2>/dev/null | tr -d '\r')"
+check "写出的脚本语法正确" "0" "$(bash -n "$TMP/home/dsh-android/start-dsh.sh" 2>/dev/null; echo $?)"
+check "引导过程拿到 APP_URL" "APP_URL=http://127.0.0.1:3099/?token=TESTTOKEN123" "$(printf '%s' "$OUT3" | tail -n 1)"
+check "引导过程也把地址递给了 app" "start -n app.dsh.mobile/.ui.MainActivity -e dsh_url http://127.0.0.1:3099/?token=TESTTOKEN123" "$(cat "$TMP/am.calls" 2>/dev/null | tr -d '\r')"
+
+# ---------- 用例 4：curl 崩了（Termux 升级了一半）→ 预检必须拦住并给修复命令 ----------
+echo
+echo "用例 4：curl 崩溃（新 libcurl 配旧 openssl）→ 预检应拦住并提示 apt full-upgrade"
+cat > "$STUB/curl" <<'EOF'
+#!/usr/bin/env bash
+echo "CANNOT LINK EXECUTABLE \"curl\": cannot locate symbol \"SSL_set_quic_tls_early_data_enabled\"" >&2
+exit 127
+EOF
+chmod +x "$STUB/curl"
+set +e
+OUT4="$(bash "$SETUP_SH" 2>&1)"
+CODE4=$?
+set -e
+check "非零退出（拦住）" "1" "$CODE4"
+check "提示了确切的修复命令" "1" "$(printf '%s' "$OUT4" | grep -c 'apt full-upgrade')"
+check "没有继续往下装依赖" "0" "$(printf '%s' "$OUT4" | grep -c '安装依赖')"
 
 # ---------- 汇总 ----------
 echo
