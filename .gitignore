@@ -30,3 +30,7 @@ tools/__pycache__/
 
 # ---- 模式 B 验证时会用到的隔离 HOME ----
 E:/dsh-verify-android/
+
+# Kotlin/Kotlin-Daemon 的构建期日志
+android/.kotlin/
+*.hprof
