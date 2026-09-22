@@ -77,6 +77,16 @@ npm error notarget No matching version found for
 > 这三条都不是"配置问题"，而是 **Android/arm64 与 Node 生态的交界处**：上游为 darwin/linux/win32 发了预编译，
 > 唯独没有 android。凡是要绕的，脚本里都写了原因。
 
+### 还有两处**运行时**硬障碍（不修就"界面能开、一开会话就失败"）
+
+| 症状（原文） | 原因 | 解法（`termux/fix-android-runtime.sh` 自动做） |
+|---|---|---|
+| `本轮运行失败：flock is not supported on android-arm64` | `@deepseek-ai/node-addon-system` 只认 linux/darwin，官方预编译在 Android/Bionic 上装不上（`libc.so.6 not found` / `__errno_location` 缺失） | 用**随包发布的 C 源码**现编：`node-gyp` + `clang` 产出 `system.node`，装成 `@deepseek-ai/node-addon-system-android-arm64`，并放行 android 判定 |
+| `EACCES: permission denied, link '…session.v3.jsonl.zstd.<hash>.c.tmp' -> '…'` | **Android 应用数据目录禁止硬链接**（SELinux；实测 `ln` 直接 Permission denied），而会话持久化用 `fs.link()` 做原子落地 | 改成同盘 `rename()`（同样原子、且被允许） |
+
+这两步**幂等**，`fix-android-runtime.sh` 跑多少次都安全；app 的「启动手机上的 DSH」每次都会跑一遍，
+所以升级 DSH、或换了手机，点一次即可自愈。自检：它最后会真的加一次锁并验证第二次被 `EAGAIN` 拒绝。
+
 ## 二、用
 
 - 启动输出里那一行长这样（这是 DSH 自己打印的，脚本只是把它抓出来）：

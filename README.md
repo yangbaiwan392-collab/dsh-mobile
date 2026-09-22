@@ -324,6 +324,32 @@ Termux 官方在 GitHub 发布 APK，且附 sha256 校验文件，用 PC 下好�
 </details>
 
 <details>
+<summary><b>界面能打开，但一开会话就报 <code>flock is not supported on android-arm64</code></b></summary>
+
+DSH 用 `@deepseek-ai/node-addon-system` 的 `flock(2)` 给会话上锁，而这个 addon **只认 linux/darwin**，
+官方预编译在 Android/Bionic 上也装不上（`libc.so.6 not found`、`__errno_location` 缺失）。
+
+好消息是官方把 **C 源码**一起发布了（`src/flock.c` 里就是 `NAPI_MODULE_INIT()`），所以在手机上现编即可：
+
+```bash
+bash ~/dsh-android/fix-android-runtime.sh    # app 的「启动手机上的 DSH」每次也会跑它（幂等）
+```
+
+它做的事：node-gyp + clang 编出 `system.node` → 装成 `@deepseek-ai/node-addon-system-android-arm64`
+→ 把平台判定放行 android → 最后**真的加一次锁**验证（第二次应被 `EAGAIN` 拒绝）。
+</details>
+
+<details>
+<summary><b>一开会话就报 <code>EACCES: permission denied, link '…session.v3.jsonl.zstd.<hash>.c.tmp'</code></b></summary>
+
+**Android 的应用数据目录禁止硬链接**（SELinux 策略），实测 `ln a b` 直接 `Permission denied`；
+而 DSH 的会话持久化用 `fs.link()` 做"原子落地" → 于是每个会话都建不起来（会话目录里只剩一个空的 `session.lock`）。
+
+同一个 `fix-android-runtime.sh` 会把它换成**同盘 `rename()`**：同样原子、且被允许
+（两处调用后面删临时文件的地方本来就容错）。修好后 `session.v3.jsonl.zstd` 会正常出现。
+</details>
+
+<details>
 <summary><b>点「启动手机上的 DSH」提示缺权限 / Termux 没接住请求</b></summary>
 
 本 app 需要 Termux 定义的运行时权限 `com.termux.permission.RUN_COMMAND`（系统描述是

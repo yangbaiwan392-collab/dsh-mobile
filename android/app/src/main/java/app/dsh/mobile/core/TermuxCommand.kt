@@ -30,6 +30,8 @@ object TermuxCommand {
         for ((name, body) in scripts) writeFile("$SCRIPT_DIR/$name", body)
         appendLine("chmod +x \"$SCRIPT_DIR\"/*.sh")
         appendLine("echo \"==> 脚本已就位（$SCRIPT_DIR）\"")
+        // Android 运行时修复是幂等的，每次点都跑一遍最省心（首次装完、或升级 DSH 之后都需要）
+        appendLine("[ -f \"$SCRIPT_DIR/fix-android-runtime.sh\" ] && bash \"$SCRIPT_DIR/fix-android-runtime.sh\" || true")
         appendLine("DSH_BIN=\"\$HOME/dsh-install/node_modules/@deepseek-ai/dsh/lib/bin.js\"")
         appendLine("if [ -f \"\$DSH_BIN\" ]; then")
         appendLine("  echo '==> 检测到已安装的 DSH，直接启动'")

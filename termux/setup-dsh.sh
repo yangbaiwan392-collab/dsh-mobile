@@ -105,6 +105,16 @@ if ( cd "$INSTALL_DIR" && node -e 'require("sharp")' >/dev/null 2>&1 ); then
 else
   echo "!! sharp 仍不可用（把上面的 npm 输出发出来）"; exit 1
 fi
+
+# Android 上还必须修两处运行时（都不是配置问题）：
+#   · flock：node-addon-system 没有 android 预编译 → 用随包的 C 源码现编 + 放行 android
+#   · 硬链接：应用数据目录禁止 link(2) → 会话持久化改用同盘 rename
+# 不修就会在开会话时报 "本轮运行失败：flock is not supported on android-arm64"
+# 或 "EACCES ... link '…session.v3.jsonl.zstd.<hash>.c.tmp'"（都是真机实测）。
+if [ -f "$HERE/fix-android-runtime.sh" ]; then
+  echo "==> Android 运行时修复（flock / 硬链接）"
+  bash "$HERE/fix-android-runtime.sh"
+fi
 npm link @deepseek-ai/dsh >/dev/null 2>&1 || true
 if ! command -v dsh >/dev/null 2>&1; then
   echo "    （npm link 未生效，改用 PATH 方式）"

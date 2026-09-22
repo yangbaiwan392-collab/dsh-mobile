@@ -37,6 +37,36 @@
 - `tools/test-termux-scripts.sh` 扩到 **4 个用例 / 19 项**：新增"自包含引导"与"curl 崩溃预检"回归；
   并修正 curl 桩必须支持 `--version`（预检会调用它）。
 
+## [0.1.5] — 2026-09-23
+
+**这一版解决的是"能打开界面但一开会话就失败"**：Android 上有两处**运行时**硬障碍，都不是配置问题。
+
+### 新增
+- `termux/fix-android-runtime.sh`：把下面两处修复做成**幂等、可复现**的一步，已接进一键流程
+  （app 每次点「启动手机上的 DSH」都会跑一遍）。**真机自愈验证**：删掉修好的产物 → 装新 APK →
+  点一次按钮 → 70 秒后原生模块自动重建、平台判定重新放行。
+
+### 修复（真机实测，附症状原文）
+- ★ **`flock is not supported on android-arm64`**：`@deepseek-ai/node-addon-system` 只认 linux/darwin，
+  且**没有 android 预编译包**（官方预编译的 glibc/musl 版在 Bionic 上都装不上：`libc.so.6 not found` /
+  `__errno_location` 缺失）。→ 但**随包发布了 C 源码**（`src/flock.c` 里就有 `NAPI_MODULE_INIT()`），
+  于是在手机上用 node-gyp + clang **现编** `system.node`，装成
+  `@deepseek-ai/node-addon-system-android-arm64`，并把平台判定放行 android。
+  已验证语义正确：第一次加锁成功、第二个 fd 被 `EAGAIN` 拒绝。
+- ★ **`EACCES: permission denied, link '…session.v3.jsonl.zstd.<hash>.c.tmp' -> '…'`**：
+  **Android 应用数据目录禁止硬链接**（SELinux，实测 `ln` 直接 Permission denied），
+  而 DSH 的会话持久化用 `fs.link()` 做原子落地 → 每个会话都建不起来。
+  → 改成**同盘 `rename()`**（同样原子、且被允许；两处调用后面的 `rm(tmp)` 已有容错）。
+  验证：会话日志 `session.v3.jsonl.zstd`（336 字节）正常落地，解开后能看到
+  `{"type":"session",…}` / `permission/preset` / `sandbox/mode` / `approval/policy` 四行。
+
+### 工具
+- `tools/decode-session-log.mjs`：解开 DSH 的**多帧** zstd 会话日志（直接 `zstdDecompressSync`
+  只解第一帧，会误以为"只有一条记录"）。
+- `tools/tap-by-text.ps1`：优先精确匹配、dump 前清旧文件（`uiautomator dump` 失败时会拿到上一屏坐标）。
+- `tools/pair-phone.ps1` / `tools/scan-adb-ports.mjs` / `tools/push-to-phone.ps1`：无线 adb 的配对、
+  端口扫描与**无损**推送（PowerShell 管道会加 BOM，改用 base64 + `tail -c +4`）。
+
 ## [0.1.4] — 2026-09-22
 
 ### 新增

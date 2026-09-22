@@ -113,6 +113,11 @@ class TermuxBridge(private val context: Context) {
         const val DEFAULT_SCRIPT_PATH = "$TERMUX_SCRIPT_DIR/start-dsh.sh"
 
         /** 这些文件必须都在 APK assets 的 termux/ 下（构建脚本会检查 APK 里是否真的有）。 */
-        val SCRIPT_FILES = listOf("setup-dsh.sh", "start-dsh.sh", "tunnel-to-pc.sh")
+        val SCRIPT_FILES = listOf(
+            "setup-dsh.sh",
+            "start-dsh.sh",
+            "tunnel-to-pc.sh",
+            "fix-android-runtime.sh",
+        )
     }
 }

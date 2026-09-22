@@ -83,7 +83,7 @@ if ($Task -like 'assemble*' -and -not $Clean) {
             try {
                 $assets = $zip.Entries | Where-Object { $_.FullName -like 'assets/termux/*.sh' } |
                     ForEach-Object { $_.FullName.Split('/')[-1] }
-                $missing = @('setup-dsh.sh', 'start-dsh.sh', 'tunnel-to-pc.sh') | Where-Object { $_ -notin $assets }
+                $missing = @('setup-dsh.sh', 'start-dsh.sh', 'tunnel-to-pc.sh', 'fix-android-runtime.sh') | Where-Object { $_ -notin $assets }
                 if ($missing.Count -gt 0) {
                     throw "APK 里缺手机侧脚本：$($missing -join ', ')（检查 build.gradle.kts 的 syncTermuxScripts）"
                 }
