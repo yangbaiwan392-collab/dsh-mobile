@@ -8,6 +8,9 @@ set -euo pipefail
 PORT="${1:-${DSH_PORT:-3080}}"
 LOG="$HOME/.dsh-web.log"
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+# DSH 的 provider 配置要求 apiKeyEnv 指向的环境变量**存在**（Ollama 本身不校验值）。
+# 这里给"远程 Ollama"那类 provider 一个占位值，见 docs/02 第五节。
+export DSH_OLLAMA_KEY="${DSH_OLLAMA_KEY:-ollama}"
 # 本 app 的组件名（与 AndroidManifest 里的 .ui.MainActivity 对应；tools/check-contracts.ps1 会核对这行）
 APP_COMPONENT='app.dsh.mobile/.ui.MainActivity'
 

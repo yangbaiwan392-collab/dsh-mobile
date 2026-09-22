@@ -66,3 +66,66 @@ node <仓库目录>\tools\loopback-proxy.mjs --listen 0.0.0.0:8081 --target 127.
 
 - cookie **绑 hostname+port**：B2 下如果 PC 的局域网 IP 变了（DHCP 换 IP），手机上的登录态会失效 → 给 PC 配静态 IP 或 DHCP 保留。
 - cookie 有效期 30 天（`cookieMaxAgeDays`），但**签名密钥**在 PC 的 `$DSH_HOME/.credentials.yaml` 里；换 `DSH_HOME` 或删该记录 = 所有手机都得重新交换一次 token。
+
+## 四、把 PC 上的 Ollama 接给**手机上的 DSH**（省电又能跑大模型）
+
+手机本地跑模型不是不行，而是**费电**（实测过的人大多不喜欢）。更合理的分工：
+**推理在你 PC 的 GPU 上，手机只当屏幕** —— 省电，而且能上 27B 与视觉模型。
+
+原理上零改动：Ollama 的 `/v1/chat/completions` 是 **OpenAI 兼容 + 流式**的，
+而 DSH 接模型只要求这个形状（`api: openai-completions` + `baseURL`）。
+
+### 1. PC 侧：把 Ollama 暴露到局域网
+
+Ollama 默认只听 `127.0.0.1:11434`，手机够不着；用现成代理转发即可
+（`node` 通常已在防火墙白名单里，比改 Ollama 监听配置更安全、也不动正在跑的 Ollama）：
+
+```powershell
+node tools\loopback-proxy.mjs --listen 0.0.0.0:8083 --target 127.0.0.1:11434
+```
+
+> **端口别用 8082** —— 实测常被 QQ 占着（`EADDRINUSE`）。
+> 本机验证：`curl http://<PC 的 LAN IP>:8083/api/tags` 列出模型 ✓；
+> 流式打 `/v1/chat/completions` 能看到 `data: {…}` 若干行 + `data: [DONE]` ✓。
+
+### 2. 手机侧：给 DSH 加一个 provider
+
+编辑手机上的 `~/.dsh/settings.yaml`，在 `llm-pi-ai.providers` 下加一段
+（模型 id 必须与 PC 上 `ollama list` 一致）：
+
+```yaml
+llm-pi-ai:
+  providers:
+    ollama-pc:
+      displayName: Ollama (家里的 PC)
+      apiKeyEnv: DSH_OLLAMA_KEY      # Ollama 不校验，但 DSH 要求这个变量存在
+      api: openai-completions
+      baseURL: http://<PC 的 LAN IP>:8083/v1
+      models:
+        - id: qwen2.5:7b-instruct
+          name: qwen2.5:7b-instruct
+          contextWindow: 32768
+          input: [text]
+        - id: qwen3-vl:8b-instruct
+          name: qwen3-vl:8b-instruct
+          contextWindow: 262144
+          input: [text, image]       # 视觉：手机上就能"看"图
+        - id: gemma3:27b
+          name: gemma3:27b
+          contextWindow: 131072
+          input: [text, image]
+```
+
+`termux/start-dsh.sh` 已经会导出 `DSH_OLLAMA_KEY`（占位值即可）。
+
+### 3. 重启手机上的 DSH，然后在 app 里选模型
+
+app 菜单 →「启动手机上的 DSH」，之后在 DSH 界面切换模型，
+列表里会出现 `Ollama (家里的 PC)` 下的那几个。
+
+### ⚠ 安全代价（必读）
+
+- Ollama 的 HTTP API **没有认证**：谁连上你的局域网，谁就能用你的显卡、看你的模型列表。
+  **只在可信的家庭网络里开**；不用时关掉这个代理进程。
+- 明文 HTTP：同网段可嗅探。要更干净请走 B1（SSH 隧道）。
+- 与"手机上跑模型"相比，这条路把计算留在 PC、手机只负责显示 —— 电量与发热是数量级差别。
