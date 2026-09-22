@@ -303,6 +303,35 @@ Termux 官方在 GitHub 发布 APK，且附 sha256 校验文件，用 PC 下好�
 </details>
 
 <details>
+<summary><b>Termux 里装 DSH 时 <code>node-pty</code> 编译失败（Could not find any Python）</b></summary>
+
+症状：
+
+```
+npm error path .../node_modules/node-pty
+npm error command sh -c node scripts/prebuild.js || node-gyp rebuild
+npm error > Rebuilding because directory .../node-pty/prebuilds/android-arm64 does not exist
+npm error gyp ERR! find Python ... Could not find any Python installation to use
+```
+
+成因：`node-pty` 只发布 `darwin-* / linux-* / win32-*` 的预编译，**没有 `android-arm64`**，只能在手机上现编；
+而 Termux 默认不带 Python/编译器。
+
+**不要**用 `--ignore-scripts` 绕：`dsh-subprocess-local` 在模块顶层就 `import * as nodePty from "node-pty"`，
+拿不到原生绑定会让这个插件加载失败、整棵 cordis 插件树起不来。
+
+修法（装工具链后重跑安装，node_modules 已就绪所以很快）：
+
+```bash
+pkg install -y python clang make
+cd ~/dsh-install && npm install --no-audit --no-fund
+npm link @deepseek-ai/dsh && dsh --version
+```
+
+`termux/setup-dsh.sh` 与 `phone-bootstrap.sh` 现在会在装 DSH 之前主动装这三个包。
+</details>
+
+<details>
 <summary><b>Termux 里 <code>curl</code> 崩了 / <code>pkg</code> 装不上包（"升级了一半"）</b></summary>
 
 真机案例：`pkg install` 时升级了 `curl`/`libcurl`（8.12→8.22），但 `openssl` 没跟着升

@@ -77,6 +77,11 @@ echo "    node $(node -v) / npm $(npm -v)"
 # ---------- 装 DSH（走国内镜像 + 绕开上游坏发布） ----------
 npm config set registry https://registry.npmmirror.com >/dev/null
 echo "==> 安装 DSH（最慢的一步，几分钟正常；registry=$(npm config get registry)）"
+# node-pty 无 android-arm64 预编译、且被顶层饿加载 → 必须先有 python/clang/make 才能编出来
+if ! command -v python3 >/dev/null 2>&1 || ! command -v clang >/dev/null 2>&1; then
+  echo "==> 安装编译工具链（python / clang / make）"
+  pkg install -y python clang make
+fi
 # 上游 0.1.5-rc.3 那个发布坏了：sidebar 发了 rc.3，配套的 documentpreview 没发，
 # 而 ^0.1.5-rc.3 按 semver 只匹配 0.1.5 系列 → 全新安装必 ETARGET。
 # 用 overrides 钉到已知可用的 rc.2 组合（本机实测 584 个包解析通过）。

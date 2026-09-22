@@ -10,6 +10,12 @@
   它会自己写出 `~/dsh-android/start-dsh.sh`，因此 app 里的「启动 DSH」按钮随后仍可用。
 
 ### 修复
+- ★ **`node-pty` 在手机上编译失败导致 DSH 装不上**：node-pty 只提供 `darwin/linux/win32` 预编译，
+  **没有 `android-arm64`**，于是退回 node-gyp 本地编译；而 Termux 默认没有 Python/编译器，
+  报 `gyp ERR! find Python ... Could not find any Python installation to use`。
+  又因为 `dsh-subprocess-local` 在**模块顶层**就 `import * as nodePty from "node-pty"`（饿加载），
+  **跳过编译（`--ignore-scripts`）会让插件树起不来**，不能走这条路。
+  → 两个脚本现在会在装 DSH 前主动 `pkg install -y python clang make`。
 - ★ **`npm i -g @deepseek-ai/dsh` 必定 ETARGET**（上游发布坏了）：`dsh-client-ui-sidebar` 有乱序发布的
   `0.1.5-rc.3`，配套的 `dsh-client-ui-sidebar-documentpreview` 无 rc.3，而 `^0.1.5-rc.3` 按 semver 只匹配
   0.1.5 系列 → 无解。改为装进 `~/dsh-install` 项目并用 `overrides` 钉住已知可用的 `0.1.5-rc.2` 组合，

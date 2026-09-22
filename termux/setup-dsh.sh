@@ -46,6 +46,13 @@ npm config set registry https://registry.npmmirror.com
 echo "    当前 registry: $(npm config get registry)"
 
 echo "==> 安装 DSH（这一步最慢，几分钟正常）"
+# node-pty 只提供 darwin/linux/win32 预编译，**没有 android-arm64** → 必须在手机上现编。
+# 而 dsh-subprocess-local 在模块顶层就 import node-pty（饿加载），编译不出来 DSH 就起不来，
+# 所以这里先把编译工具链装好（否则 node-gyp 会报一大段 "Could not find any Python"）。
+if ! command -v python3 >/dev/null 2>&1 || ! command -v clang >/dev/null 2>&1; then
+  echo "==> 安装编译工具链（python / clang / make，给 node-pty 用）"
+  pkg install -y python clang make
+fi
 # ⚠ 不要用 `npm i -g @deepseek-ai/dsh`：上游当前发布树是坏的 ——
 #   dsh-client-ui-sidebar 有一个乱序发布的 0.1.5-rc.3，而配套的
 #   dsh-client-ui-sidebar-documentpreview 没有 rc.3（只有 rc.1/rc.2，然后跳到 alpha）；
