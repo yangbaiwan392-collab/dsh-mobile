@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### 已验证（真机里程碑）
+- **Android/Termux 上 DSH 的原生依赖可以编出来**：`node-pty` 无 `android-arm64` 预编译，
+  在 moto g54（Android 13 / aarch64）上用 `pkg install -y python clang make` +
+  `npm rebuild node-pty @deepseek-ai/dsh-subprocess-local --foreground-scripts` **编译成功**
+  （`gyp info ok`，产物 `build/Release/pty.node` **65032 字节**）；
+  `@deepseek-ai/dsh-subprocess-local` 的 `ensure-spawn-helper` postinstall 也正常执行。
+- ★ 期间发现 **npm 11.19+ 的安装脚本审批闸门**：未批准的包其 install/postinstall **不执行**，
+  且 npm 的 `up to date` 快路径**不会补跑**已装包的脚本 —— 所以必须"检查产物"而不是"相信 exit code"。
+  现在两个脚本都显式检查 `pty.node` 并在缺失时 rebuild。
+
 ### 新增
 - `termux/phone-bootstrap.sh`：**自包含引导**（贴进 Termux 即可跑，不需要 `/sdcard` 授权、不需要 MTP 传文件），
   它会自己写出 `~/dsh-android/start-dsh.sh`，因此 app 里的「启动 DSH」按钮随后仍可用。
