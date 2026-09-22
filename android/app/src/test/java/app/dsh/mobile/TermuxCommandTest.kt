@@ -40,6 +40,8 @@ class TermuxCommandTest {
         listOf(
             "allow-external-apps", "node -v", "node-pty", "sharp-wasm32",
             "pgrep -f 'dsh web'", "127.0.0.1:3080", ".dsh-web.log",
+            // 沙箱能力：Android 内核普遍 <5.13，没 Landlock 就只能在 danger-full-access 下跑命令
+            "uname -r", "/sys/kernel/security/landlock", "danger-full-access",
         ).forEach { assertTrue("自检应包含：$it", cmd.contains(it)) }
         assertTrue(cmd.contains("am start -n app.dsh.mobile/app.dsh.mobile.ui.MainActivity -e dsh_diag"))
         assertTrue(cmd.contains("~/.dsh-diag.txt"))

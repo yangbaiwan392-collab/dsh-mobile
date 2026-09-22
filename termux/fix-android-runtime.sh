@@ -36,7 +36,12 @@ else
   if [ ! -f "$BUILD_DIR/src/flock.c" ]; then
     cp "$ADDON_DIR/src/flock.c" "$BUILD_DIR/src/flock.c"
   fi
-  # binding.gyp 只编 flock.c —— main.c 是那个 landlock-run 独立 CLI（有自己的 main()）
+  # binding.gyp 两个目标：
+  #   system        —— flock 原生模块（src/flock.c 里有 NAPI_MODULE_INIT）
+  #   landlock-run  —— DSH 沙箱要的**可执行文件**（src/main.c 自带 main()）
+  # DSH 的本地沙箱在 linux 上的后端链是 ["bwrap", "landlock"]，landlock 那条走
+  # `@deepseek-ai/node-addon-system-<platform>-<arch>/bin/landlock-run --probe` 功能探测。
+  # 内核 <5.13 的手机会探测失败（进而在带沙箱的模式下拒绝执行命令），但二进制装上无害。
   cat > "$BUILD_DIR/binding.gyp" <<'GYP_EOF'
 {
   "targets": [
@@ -45,10 +50,20 @@ else
       "sources": ["src/flock.c"],
       "defines": ["_GNU_SOURCE=1"],
       "cflags": ["-O2", "-fPIC"]
+    },
+    {
+      "target_name": "landlock-run",
+      "type": "executable",
+      "sources": ["src/main.c"],
+      "defines": ["_GNU_SOURCE=1"],
+      "cflags": ["-O2"]
     }
   ]
 }
 GYP_EOF
+  if [ ! -f "$BUILD_DIR/src/main.c" ]; then
+    cp "$ADDON_DIR/src/main.c" "$BUILD_DIR/src/main.c"
+  fi
 
   echo "    编译（node-gyp + clang）…"
   ( cd "$BUILD_DIR" && "$NODE" "$GYP" rebuild --python="$PREFIX/bin/python3" >/dev/null 2>&1 ) || {
@@ -59,6 +74,10 @@ GYP_EOF
 
   mkdir -p "$PKG_DIR/bin"
   cp "$BUILD_DIR/build/Release/system.node" "$PKG_DIR/bin/system.node"
+  if [ -f "$BUILD_DIR/build/Release/landlock-run" ]; then
+    cp "$BUILD_DIR/build/Release/landlock-run" "$PKG_DIR/bin/landlock-run"
+    chmod +x "$PKG_DIR/bin/landlock-run"
+  fi
   cat > "$PKG_DIR/package.json" <<'PKG_EOF'
 {
   "name": "@deepseek-ai/node-addon-system-android-arm64",
@@ -130,5 +149,20 @@ JS_EOF
 
 ( cd "$INSTALL_DIR" && "$NODE" selfcheck-flock.mjs "$HOME/.flock-selfcheck" ) || exit 1
 rm -f "$HOME/.flock-selfcheck"
+
+echo "==> 自检：沙箱后端（决定 agent 能不能执行 shell 命令）"
+if [ -x "$PKG_DIR/bin/landlock-run" ]; then
+  if "$PKG_DIR/bin/landlock-run" --probe >/dev/null 2>&1; then
+    echo "    Landlock 可用 ✓（内核支持：agent 在 workspace-write 等模式下就能跑命令）"
+  else
+    echo "    Landlock 不可用（内核 $(uname -r) 通常 <5.13 或未启用该 LSM）"
+    echo "    → 要让 agent 执行命令，只能把沙箱模式设为 danger-full-access（安全权衡自负）"
+  fi
+fi
+if command -v bwrap >/dev/null 2>&1; then
+  echo "    检测到 bwrap（bubblewrap）：DSH 会优先用它"
+else
+  echo "    没有 bwrap（Android 一般不给非特权用户命名空间，Termux 才改用 proot）"
+fi
 
 echo "==> Android 运行时修复完成（flock 已编好、硬链接已绕开）"
