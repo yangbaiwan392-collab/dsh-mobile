@@ -94,6 +94,17 @@ if [ ! -f "$PTY_NODE" ]; then
 fi
 [ -f "$PTY_NODE" ] || { echo "!! node-pty 仍未编出：把上面的编译错误发出来"; exit 1; }
 echo "    node-pty 编译产物 ✓"
+
+# sharp 同样没有 android-arm64 预编译，而且需要 libvips；官方给的免编译出路是 wasm 版。
+# dsh-attachment-local 依赖它，缺了整棵插件树起不来（真机实测报
+# "Could not load the sharp module using the android-arm64 runtime"）。
+echo "==> 安装 wasm 版 sharp（@img/sharp-wasm32，免编译）"
+( cd "$INSTALL_DIR" && npm install --no-audit --no-fund @img/sharp-wasm32@0.35.4 )
+if ( cd "$INSTALL_DIR" && node -e 'require("sharp")' >/dev/null 2>&1 ); then
+  echo "    sharp ✓"
+else
+  echo "!! sharp 仍不可用（把上面的 npm 输出发出来）"; exit 1
+fi
 npm link @deepseek-ai/dsh >/dev/null 2>&1 || true
 if ! command -v dsh >/dev/null 2>&1; then
   echo "    （npm link 未生效，改用 PATH 方式）"

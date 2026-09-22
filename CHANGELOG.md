@@ -37,6 +37,25 @@
 - `tools/test-termux-scripts.sh` 扩到 **4 个用例 / 19 项**：新增"自包含引导"与"curl 崩溃预检"回归；
   并修正 curl 桩必须支持 `--version`（预检会调用它）。
 
+## [0.1.3] — 2026-09-22
+
+### 新增
+- 工具栏菜单：把「启动手机上的 DSH」与「怎么连 PC？」从**空状态**里解放出来 ——
+  真机测试时发现"一旦有了入口，空状态隐藏，这两个按钮就再也找不到了"。
+- **真机截图入仓**（`docs/images/phone-*.png`，moto g54 / Android 15 实拍）。
+
+### 已验证（模式 A 端到端，真机）
+Termux 装好 DSH → `start-dsh.sh` 启动并打印 token URL → 脚本经 `am start -e dsh_url` 交给 app →
+app 自动建档「手机本地」→ 点开在 WebView 里渲染出完整 DSH 界面。
+
+### 修复
+- ★ **`--expose-internals is required for HMR service`**：DSH 的 web profile 带 HMR 插件，
+  要求 node 以此 flag 启动；且 `dsh` 的 shebang 是 `#!/usr/bin/env node`，而 **Android 没有 `/usr/bin/env`**
+  （只有 termux-exec 在场时才被重写）→ 启动脚本改为 `node --expose-internals <dsh>/lib/bin.js`。
+- ★ **`Could not load the "sharp" module using the android-arm64 runtime`**：sharp 无 android-arm64 预编译
+  且需 libvips → 按官方指引安装 wasm 版 `@img/sharp-wasm32@0.35.4`（免编译），两个脚本都已内置并验证。
+- 脚本内置 `LD_PRELOAD=libtermux-exec.so` 兜底，使脚本从 Termux 之外的调用方（adb / 服务上下文）也能跑。
+
 ## [0.1.2] — 2026-09-22
 
 ### 修复

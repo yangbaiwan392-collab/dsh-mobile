@@ -3,6 +3,8 @@ package app.dsh.mobile.ui
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +17,7 @@ import app.dsh.mobile.core.Profile
 import app.dsh.mobile.core.TunnelGuidance
 import app.dsh.mobile.platform.CrashLog
 import app.dsh.mobile.platform.TermuxBridge
+import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 
@@ -41,6 +44,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<FloatingActionButton>(R.id.add).setOnClickListener { startActivity(Nav.newProfile(this)) }
         findViewById<View>(R.id.start_local).setOnClickListener { startLocalDsh() }
         findViewById<View>(R.id.how_to_connect).setOnClickListener { showConnectGuide() }
+        // 空状态里那两个按钮一旦有了入口就看不见了 —— 真机验证时发现的缺口，所以同时在工具栏菜单里给一份
+        setSupportActionBar(findViewById<MaterialToolbar>(R.id.toolbar))
 
         handleIncomingEndpoint(intent)
         showLastCrashIfAny()
@@ -49,6 +54,23 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIncomingEndpoint(intent)
+    }
+
+    /** 工具栏菜单：与空状态里那两个按钮等价，保证任何时候都能用。 */
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menu.add(0, MENU_START_LOCAL, 0, R.string.action_start_local)
+        menu.add(0, MENU_CONNECT_GUIDE, 1, R.string.action_how_to_connect)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        MENU_START_LOCAL -> {
+            startLocalDsh(); true
+        }
+        MENU_CONNECT_GUIDE -> {
+            showConnectGuide(); true
+        }
+        else -> super.onOptionsItemSelected(item)
     }
 
     override fun onResume() {
@@ -144,4 +166,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+
+    private companion object {
+        const val MENU_START_LOCAL = 1
+        const val MENU_CONNECT_GUIDE = 2
+    }
 }

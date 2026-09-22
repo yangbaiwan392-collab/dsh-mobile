@@ -7,7 +7,17 @@
   <img src="docs/images/icon-round.png" width="96" alt="应用图标：朱红小鲸鱼 + 墨印圈" />
 </p>
 
-**Android 13+（minSdk 33 / targetSdk 35）· Kotlin + 传统 View · 无网络依赖（除你自己指定的 DSH 实例）· 无遥测 · MIT**
+**Android 13+（minSdk 33 / targetSdk 35；真机实测于 Moto G54 / Android 15）· Kotlin + 传统 View · 无网络依赖（除你自己指定的 DSH 实例）· 无遥测 · MIT**
+
+## 真机截图
+
+| 入口列表 | WebView 里的 DSH 界面 |
+|---|---|
+| ![入口列表](docs/images/phone-profile-list.png) | ![DSH 界面](docs/images/phone-dsh-ui.png) |
+
+两张都是 **moto g54（Android 15）** 上的实拍：左边是模式 A 跑通后 app 自动收到的「手机本地」入口
+（Termux 脚本通过 `am start -e dsh_url` 交回来的，含 token）；右边是同一条链路的终点 ——
+真正的 DSH Web 界面在 app 的 WebView 里渲染（HARNESS 侧边栏、新会话、工作区、探索未至之境）。
 
 ---
 
@@ -211,18 +221,20 @@ android-dsh/
 
 **已在真机或本机实测**
 
-- [x] v0.1.2 在 **moto g54（Android 13）** 上安装并**正常启动**（v0.1.0 的闪退根因已修）
-- [x] 纯逻辑与契约单测 25/25；Termux 脚本桩测试 10/10；跨工件契约检查通过
+- [x] **模式 A 全链路在真机上跑通（moto g54 / Android 15）**：Termux 里装好 DSH → `start-dsh.sh` 启动 →
+      打印 `dsh web: http://127.0.0.1:3080/?token=…` → 脚本把地址交给 app → app 自动建档「手机本地」→
+      点开在 WebView 里渲染出完整 DSH 界面（见上方截图）
+- [x] v0.1.2/0.1.3 在真机上安装并正常启动；v0.1.3 可原地覆盖安装（同一签名密钥）
+- [x] 纯逻辑与契约单测 25/25；Termux 脚本桩测试 20/20（4 个用例）；跨工件契约检查通过
 - [x] 构建链可复现：工具链镜像 5–8 MB/s，`assembleDebug` 成功，产物 11.15 MB
 - [x] APK 元数据：`app.dsh.mobile` / minSdk 33 / targetSdk 35 / launcher = `app.dsh.mobile.ui.MainActivity` / `<application android:name="app.dsh.mobile.DshApp">`
 - [x] 签名：工程自带调试密钥，v2 方案，证书指纹由构建脚本打印
 - [x] 模式 B 的**代理链路**端到端：经代理交换 token 得 `Set-Cookie`，带 cookie 取回 27660 字节的真 SPA
 - [x] DSH 只监听 loopback（两条绑定方式都被实测否掉）
 
-**尚未实测（需要手机/网络条件）**
+**尚未实测（需要特定条件）**
 
-- [ ] 模式 A 全链路：Termux 里 `setup-dsh.sh` 装 Node + DSH、唤醒锁、token 回传（脚本已在本机用桩命令跑通，但**没在真 Termux 里跑过**）
-- [ ] WebView 里的 DSH 界面细节：软键盘、横竖屏、文件上传/下载、长会话滚动
+- [ ] WebView 里的交互细节：软键盘、横竖屏、文件上传/下载、长会话滚动
 - [ ] 模式 B 的 SSH 隧道（本机没有 sshd，需要管理员启用 Windows 的 OpenSSH 服务器）
 - [ ] release 签名（当前只有调试签名）
 
@@ -240,8 +252,8 @@ android-dsh/
 | 项 | 值 |
 |---|---|
 | Android | **13（API 33）及以上**；`minSdk 33` 是刻意选择（少一半兼容分支） |
-| 实测机型 | moto g54（Android 13） |
-| DSH | `@deepseek-ai/dsh 0.1.5-rc.1` 上实测（协议细节读自源码） |
+| 实测机型 | **moto g54（XT2343-3）· Android 15（API 35）· arm64-v8a** |
+| DSH | `@deepseek-ai/dsh 0.1.5-rc.1/rc.2` 上实测（协议细节读自源码） |
 | 构建环境 | Windows + JDK 17 + Gradle 8.11.1 + AGP 8.7.3 + compileSdk 35 |
 
 ## 已知限制 / 路线图
@@ -300,6 +312,35 @@ Termux 官方在 GitHub 发布 APK，且附 sha256 校验文件，用 PC 下好�
 本仓库的 `tools/` 思路同样适用：下载后**先核对官方 sha256** 再装。
 
 注意：GitHub 发布的是 `github-debug` 构建；若你手机上已装 F-Droid 版且签名不同，需先卸载。
+</details>
+
+<details>
+<summary><b>Termux 里 DSH 起不来：<code>Could not load the "sharp" module</code></b></summary>
+
+`sharp` 是 `dsh-attachment-local` 的依赖，同样**没有 android-arm64 预编译**，而且要 libvips。
+官方给的免编译出路就是 wasm 版（sharp 的加载器在未知平台上会兜底到它）：
+
+```bash
+cd ~/dsh-install && npm install --no-audit --no-fund @img/sharp-wasm32@0.35.4
+node -e 'require("sharp")'      # 应打印 sharp OK
+```
+
+`termux/setup-dsh.sh` 与 `phone-bootstrap.sh` 已内置这一步。
+</details>
+
+<details>
+<summary><b>Termux 里 DSH 起不来：<code>--expose-internals is required for HMR service</code></b></summary>
+
+DSH 的 web profile 带 HMR 插件，它要求 node 以 `--expose-internals` 启动。
+所以启动命令应当是 **node + bin.js**，而不是依赖 `dsh` 这个 shim：
+
+```bash
+node --expose-internals ~/dsh-install/node_modules/@deepseek-ai/dsh/lib/bin.js web --port 3080 --no-open
+```
+
+`termux/start-dsh.sh` 已经这么做了（同时也解释了为什么不能只靠 `dsh`：
+它在 Android 上的 shebang 是 `#!/usr/bin/env node`，而**系统里没有 `/usr/bin/env`** ——
+只有 Termux 的 termux-exec 在场时才会被重写）。
 </details>
 
 <details>

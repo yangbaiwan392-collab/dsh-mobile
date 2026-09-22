@@ -7,19 +7,32 @@ set -euo pipefail
 
 PORT="${1:-${DSH_PORT:-3080}}"
 LOG="$HOME/.dsh-web.log"
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 # 本 app 的组件名（与 AndroidManifest 里的 .ui.MainActivity 对应；tools/check-contracts.ps1 会核对这行）
 APP_COMPONENT='app.dsh.mobile/.ui.MainActivity'
 
-# 解析 dsh 命令：优先 PATH，其次项目本地安装。
-# 为什么需要兜底：上游坏依赖（0.1.5-rc.3）让 `npm link <包名>` 必定失败 ——
-# 它会回 registry 重新解析。所以我们用 ~/dsh-install 里的 .bin（见 docs/01）。
-DSH_BIN=""
-if command -v dsh >/dev/null 2>&1; then
-  DSH_BIN="dsh"
-elif [ -x "$HOME/dsh-install/node_modules/.bin/dsh" ]; then
-  DSH_BIN="$HOME/dsh-install/node_modules/.bin/dsh"
+# Termux 靠 termux-exec 把 shebang（#!/usr/bin/env node）重写成 $PREFIX/bin/node；
+# 从非 Termux 环境（例如 adb run-as、或某些服务上下文）调用本脚本时它没被带上，
+# 于是 `dsh` 会报 "/usr/bin/env: bad interpreter" —— 这里补上，让脚本从任何调用方都能跑。
+if [ -z "${LD_PRELOAD:-}" ] && [ -f "$PREFIX/lib/libtermux-exec.so" ]; then
+  export LD_PRELOAD="$PREFIX/lib/libtermux-exec.so"
+fi
+
+# 解析 dsh 命令。三条理由决定了这里不走 `dsh` 这个 shim：
+#   1) 上游坏依赖（0.1.5-rc.3）让 `npm link <包名>` 必定失败（它会回 registry 重新解析），所以用 .bin 路径；
+#   2) dsh 的 shebang 是 `#!/usr/bin/env node`，**Android 上没有 /usr/bin/env** ——
+#      只有 Termux 的 termux-exec 在场时才会被重写（见上面的 LD_PRELOAD 兜底）；
+#   3) DSH 的 web profile 带 HMR 插件，它要求 node 以 **--expose-internals** 启动，
+#      否则报 "--expose-internals is required for HMR service"（真机实测）。
+# 因此直接用 node 调 bin.js，并把 flag 带上。
+NODE_BIN="$(command -v node || echo "$PREFIX/bin/node")"
+DSH_JS="$HOME/dsh-install/node_modules/@deepseek-ai/dsh/lib/bin.js"
+if [ -f "$DSH_JS" ]; then
+  DSH_CMD=("$NODE_BIN" --expose-internals "$DSH_JS")
+elif command -v dsh >/dev/null 2>&1; then
+  DSH_CMD=(dsh)
 else
-  echo "!! 找不到 dsh 命令。先按 docs/01-termux-local.md 在 ~/dsh-install 里装好。"
+  echo "!! 找不到 dsh。先按 docs/01-termux-local.md 在 ~/dsh-install 里装好。"
   exit 1
 fi
 
@@ -44,7 +57,7 @@ if curl -s -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null; then
 else
   echo "==> 启动 dsh web --port $PORT（后台，日志 $LOG）"
   : > "$LOG"
-  nohup "$DSH_BIN" web --port "$PORT" --no-open >>"$LOG" 2>&1 &
+  nohup "${DSH_CMD[@]}" web --port "$PORT" --no-open >>"$LOG" 2>&1 &
   URL=""
   for _ in $(seq 1 60); do
     URL="$(url_from_log || true)"

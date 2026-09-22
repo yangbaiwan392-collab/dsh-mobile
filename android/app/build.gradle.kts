@@ -25,8 +25,8 @@ android {
         // 用户手机是 Android 13+：把下限抬到 33，省掉一半兼容分支（少分支 = 少屎山）
         minSdk = 33
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.2"
+        versionCode = 3
+        versionName = "0.1.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

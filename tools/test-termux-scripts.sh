@@ -64,8 +64,16 @@ exit 0
 EOF
 cat > "$STUB/node" <<'EOF'
 #!/usr/bin/env bash
-echo v22.0.0
+# 模拟 node：被用来跑 dsh 的 bin.js 时，打印 DSH 真实格式的那一行；否则打印版本号
+case "$*" in
+  *bin.js*) echo "dsh web: http://127.0.0.1:3099/?token=TESTTOKEN123 (LAN: http://192.168.0.105:3099/?token=TESTTOKEN123)" ;;
+  *) echo v22.0.0 ;;
+esac
+exit 0
 EOF
+# 脚本现在优先用 node + bin.js（避开 shebang 与 HMR flag 问题），所以桩环境里要有这个文件
+mkdir -p "$TMP/home/dsh-install/node_modules/@deepseek-ai/dsh/lib"
+: > "$TMP/home/dsh-install/node_modules/@deepseek-ai/dsh/lib/bin.js"
 cat > "$STUB/npm" <<'EOF'
 #!/usr/bin/env bash
 # 模拟 npm：config 打印 registry；rebuild 会**生成** node-pty 的编译产物

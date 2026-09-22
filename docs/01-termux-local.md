@@ -44,9 +44,7 @@ bash ~/dsh-android/setup-dsh.sh
 > （少了 `.ui`），而它后面带着 `|| true`，在手机上会"看起来一切正常、app 却没收到地址"。
 > 现在 `tools/build-apk.ps1` 每次构建都会先跑跨工件契约检查 + 这个脚本测试。
 
-### npm 装 DSH 必失败？那是上游发布坏了（已内置绕法）
-
-真机症状：
+### npm 装 DSH 必失败？那是上游发布坏了（已内置绕法）真机症状：
 
 ```
 npm error code ETARGET
@@ -65,6 +63,19 @@ npm error notarget No matching version found for
 该组合在本机用 `--dry-run` 实测 **584 个包全部解析通过**（`tools/probe-dsh-versions.ps1` 可复现）。
 
 手工等价命令见 README 的 FAQ；上游修好后本绕法无需移除（钉版本本身无害）。
+
+### 真机上额外踩到的两个原生依赖（脚本已内置）
+
+跑通模式 A 时在 moto g54（Android 15 / arm64）上又撞了两个「Android 没有预编译」的模块：
+
+| 症状 | 原因 | 解法（脚本已自动做） |
+|---|---|---|
+| `gyp ERR! find Python` / `Releasing because ... prebuilds/android-arm64 does not exist` | `node-pty` 无 android-arm64 预编译，且被 `dsh-subprocess-local` **顶层 import**（饿加载，跳过编译就起不来） | `pkg install -y python clang make`，然后 `npm rebuild node-pty …` |
+| `Could not load the "sharp" module using the android-arm64 runtime` | `sharp` 无 android-arm64 预编译且需 libvips | 装官方推荐的 wasm 版：`npm i @img/sharp-wasm32@0.35.4`（**免编译**） |
+| `--expose-internals is required for HMR service` | web profile 的 HMR 插件要求 node 带该 flag；而 `dsh` 的 shebang 在 Android 上无法解析（没有 `/usr/bin/env`） | 用 `node --expose-internals <dsh>/lib/bin.js web …` 启动（`start-dsh.sh` 已如此） |
+
+> 这三条都不是"配置问题"，而是 **Android/arm64 与 Node 生态的交界处**：上游为 darwin/linux/win32 发了预编译，
+> 唯独没有 android。凡是要绕的，脚本里都写了原因。
 
 ## 二、用
 

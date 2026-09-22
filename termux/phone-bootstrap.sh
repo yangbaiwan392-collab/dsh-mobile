@@ -29,11 +29,17 @@ cat > "$SCRIPT_DIR/start-dsh.sh" <<'SH'
 set -euo pipefail
 PORT="${1:-${DSH_PORT:-3080}}"
 LOG="$HOME/.dsh-web.log"
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 APP_COMPONENT='app.dsh.mobile/.ui.MainActivity'
-DSH_BIN=""
-if command -v dsh >/dev/null 2>&1; then DSH_BIN="dsh"
-elif [ -x "$HOME/dsh-install/node_modules/.bin/dsh" ]; then DSH_BIN="$HOME/dsh-install/node_modules/.bin/dsh"
-else echo "!! 找不到 dsh 命令，先按 docs/01-termux-local.md 安装"; exit 1; fi
+if [ -z "${LD_PRELOAD:-}" ] && [ -f "$PREFIX/lib/libtermux-exec.so" ]; then
+  export LD_PRELOAD="$PREFIX/lib/libtermux-exec.so"
+fi
+# DSH 的 web profile 带 HMR 插件，要求 node 以 --expose-internals 启动（真机实测）
+NODE_BIN="$(command -v node || echo "$PREFIX/bin/node")"
+DSH_JS="$HOME/dsh-install/node_modules/@deepseek-ai/dsh/lib/bin.js"
+if [ -f "$DSH_JS" ]; then DSH_CMD=("$NODE_BIN" --expose-internals "$DSH_JS")
+elif command -v dsh >/dev/null 2>&1; then DSH_CMD=(dsh)
+else echo "!! 找不到 dsh，先按 docs/01-termux-local.md 安装"; exit 1; fi
 url_from_log() {
   [ -f "$LOG" ] || return 1
   local line
@@ -46,7 +52,7 @@ if curl -s -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null; then
 else
   echo "==> 启动 dsh web --port $PORT（日志 $LOG）"
   : > "$LOG"
-  nohup "$DSH_BIN" web --port "$PORT" --no-open >>"$LOG" 2>&1 &
+  nohup "${DSH_CMD[@]}" web --port "$PORT" --no-open >>"$LOG" 2>&1 &
 fi
 URL=""
 for _ in $(seq 1 60); do
@@ -116,6 +122,10 @@ if [ ! -f "$PTY_NODE" ]; then
   ( cd "$INSTALL_DIR" && npm rebuild node-pty @deepseek-ai/dsh-subprocess-local --foreground-scripts )
 fi
 [ -f "$PTY_NODE" ] || { echo "!! node-pty 仍未编出：把上面的编译错误发出来"; exit 1; }
+# sharp 也没有 android-arm64 预编译 → 用官方推荐的 wasm 版（免编译）
+echo "==> 安装 wasm 版 sharp（@img/sharp-wasm32）"
+( cd "$INSTALL_DIR" && npm install --no-audit --no-fund @img/sharp-wasm32@0.35.4 ) || true
+( cd "$INSTALL_DIR" && node -e 'require("sharp")' >/dev/null 2>&1 ) || { echo "!! sharp 不可用"; exit 1; }
 command -v dsh >/dev/null 2>&1 || {
   # 不用 npm link <包名>：它会回 registry 重新解析，必然再撞上游坏依赖
   ln -sf "$INSTALL_DIR/node_modules/.bin/dsh" "$PREFIX/bin/dsh" 2>/dev/null || true
