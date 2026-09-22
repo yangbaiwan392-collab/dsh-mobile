@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DSH 手机端</string>
+
+    <!-- 入口列表 -->
+    <string name="default_profile_name">手机本地</string>
+    <string name="profile_url_with_token">%1$s · 已存 token</string>
+    <string name="profile_url_no_token">%1$s · 无 token（靠已有 cookie）</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_delete">删除</string>
+    <string name="action_start_local">启动手机上的 DSH</string>
+    <string name="action_how_to_connect">怎么连 PC？</string>
+    <string name="action_reauth">重新认证（清 cookie 再交换 token）</string>
+    <string name="action_copy_url">复制入口地址</string>
+
+    <!-- 空状态 -->
+    <string name="empty_title">还没有入口</string>
+    <string name="empty_body">两种用法：\n· 手机自己跑：装 F-Droid 版 Termux，把 termux/ 里两个脚本放进去跑 setup-dsh.sh\n· 连 PC：按「怎么连 PC？」里的命令开隧道或代理，再把带 token 的地址粘进来</string>
+
+    <!-- 编辑页 -->
+    <string name="title_add_profile">添加入口</string>
+    <string name="title_edit_profile">编辑入口</string>
+    <string name="label_name">名字（随便起）</string>
+    <string name="label_url">入口地址</string>
+    <string name="hint_url">直接粘贴 dsh 打印的那整行也行</string>
+    <string name="edit_url_help">可粘贴整行，例如：dsh web: http://127.0.0.1:3080/?token=…（LAN: …）—— 会自动摘出地址与 token。\ntoken 每次 dsh 重启都会变；换到的 cookie 有效期 30 天。</string>
+    <string name="action_paste">从剪贴板粘贴</string>
+    <string name="action_save">保存</string>
+
+    <!-- 连 PC 引导 -->
+    <string name="guide_remote_title">连 PC 上的 DSH</string>
+    <string name="guide_remote_intro">DSH 只监听 127.0.0.1（禁止 0.0.0.0），所以手机不能直连，必须先转发：</string>
+
+    <!-- 崩溃日志 -->
+    <string name="crash_title">上次启动崩溃了</string>
+    <string name="crash_copy">复制日志</string>
+    <string name="crash_copied">崩溃日志已复制，可以发给我</string>
+    <string name="crash_clear">清除</string>
+
+    <!-- 提示 -->
+    <string name="toast_endpoint_added">已添加入口：%1$s</string>
+    <string name="toast_endpoint_invalid">地址解析失败：%1$s</string>
+    <string name="toast_clipboard_empty">剪贴板是空的</string>
+    <string name="toast_saved_no_token">已保存（没带 token：如果手机上已经登录过，这样也能用）</string>
+    <string name="toast_profile_missing">入口不存在，可能已被删除</string>
+    <string name="toast_url_copied">已复制入口地址</string>
+    <string name="toast_download_started">已开始下载（在通知栏看进度）</string>
+    <string name="toast_download_failed">下载失败：%1$s</string>
+    <string name="toast_reauth_failed">认证失败（HTTP %1$d）。token 可能已过期：去 Termux 或 PC 重新拿一次入口地址。</string>
+    <string name="toast_termux_launched">已让 Termux 启动本地 DSH。完成后它会自动把入口地址传回来（首次会请求一次权限）。</string>
+</resources>

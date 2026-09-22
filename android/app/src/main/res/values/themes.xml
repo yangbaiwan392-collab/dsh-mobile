@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 只有一个主题：Material3 日/夜自适应，无 ActionBar（每页自己用 MaterialToolbar） -->
+    <style name="Theme.DshMobile" parent="Theme.Material3.DayNight.NoActionBar" />
+
+    <!-- 图标底色：米白纸色（配朱红鲸，做成"纸上一枚朱印"的观感） -->
+    <color name="ic_launcher_background">#F2EADA</color>
+</resources>

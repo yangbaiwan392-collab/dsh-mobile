@@ -1,0 +1,32 @@
+# ---- 构建产物 ----
+android/build/
+android/app/build/
+android/.gradle/
+android/.idea/
+*.iml
+.cxx/
+
+# ---- 本机路径（每个开发者自己的 SDK/JDK 位置，不能进库）----
+android/local.properties
+
+# ---- 签名密钥：不进版本库 ----
+# 由 tools/make-debug-keystore.ps1 在首次构建时生成（生效时间 2020 年起、30 年有效）。
+# 这是**调试**密钥（口令公开的 android/androiddebugkey），但仍属私钥文件，不该提交；
+# 代价：不同机器构建出的 APK 签名不同 → 换机器重装需先卸载。
+android/signing/debug.keystore
+
+# ---- 发给手机的东西（体积大、且可从源码重建）----
+dist/
+phone/
+
+# ---- 第三方驱动（Google USB Driver，有它自己的许可，按文档现下现用）----
+tools/usb-driver/
+
+# ---- 生成的预览/临时件 ----
+tools/_icon_preview_full.png
+tools/_icon_preview_round.png
+tools/_icon_preview_small.png
+tools/__pycache__/
+
+# ---- 模式 B 验证时会用到的隔离 HOME ----
+E:/dsh-verify-android/

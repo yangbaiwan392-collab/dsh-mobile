@@ -1,0 +1,24 @@
+# 依赖版本与坐标的唯一事实源 —— 换版本只改这个文件。
+[versions]
+agp = "8.7.3"
+kotlin = "2.0.21"
+coreKtx = "1.13.1"
+appcompat = "1.7.0"
+material = "1.12.0"
+recyclerview = "1.3.2"
+junit = "4.13.2"
+json = "20250107"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "recyclerview" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+junit = { module = "junit:junit", version.ref = "junit" }
+# 单元测试里给 org.json 一份真实现：android.jar 的 stub 在 JVM 上会抛 "not mocked"
+# 注意：别名不能叫 json-for-tests —— 生成的访问器会变成 libs.json.for.tests，而 for 是 Kotlin 关键字
+json-test = { module = "org.json:json", version.ref = "json" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

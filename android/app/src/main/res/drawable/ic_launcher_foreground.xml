@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  图标前景：原创小鲸鱼 + 一枚朱红印圈。
+  ⚠ 不是 DeepSeek 官方鲸鱼标的复刻 —— 那是它的商标，所以这里自己画、并改用朱红。
+
+  几何与 tools/icon-preview.py **逐字对应**（那边是唯一事实源，带安全区自检）：
+  改形状先改脚本 → 看预览与断言 → 再把数字抄到这里。
+  自适应图标规则：内容必须落在中央安全区（本图控制在 r≤29.3，安全上限 33）。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 印圈：中心 (54,54) 半径 31，线宽 2.4 -->
+    <path
+        android:pathData="M 54,23 a 31,31 0 1,0 0.01,0 Z"
+        android:strokeColor="#1A1A1A"
+        android:strokeWidth="2.4"
+        android:fillColor="#00000000" />
+
+    <!-- 鲸身：椭圆 中心 (50,58) rx20 ry13 -->
+    <path
+        android:pathData="M 30,58 a 20,13 0 1,0 40,0 a 20,13 0 1,0 -40,0 Z"
+        android:fillColor="#A83024" />
+
+    <!-- 尾鳍：(69,58) (78,48) (73,58) (78,68) -->
+    <path
+        android:pathData="M 69,58 L 78,48 L 73,58 L 78,68 Z"
+        android:fillColor="#A83024" />
+
+    <!-- 眼睛：中心 (39,55) r2.6，挖成纸色（像印出来的留白） -->
+    <path
+        android:pathData="M 39,52.4 a 2.6,2.6 0 1,0 0.01,0 Z"
+        android:fillColor="#F2EADA" />
+
+    <!-- 喷水：两滴 —— (41,42) r2.2 / (36,37) r1.6，远看就知道是鲸 -->
+    <path
+        android:pathData="M 41,39.8 a 2.2,2.2 0 1,0 0.01,0 Z"
+        android:fillColor="#A83024" />
+    <path
+        android:pathData="M 36,35.4 a 1.6,1.6 0 1,0 0.01,0 Z"
+        android:fillColor="#A83024" />
+</vector>

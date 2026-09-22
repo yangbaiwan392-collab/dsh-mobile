@@ -1,0 +1,51 @@
+# 变更记录
+
+本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)；`0.x` 期间接口与 UI 仍可能变动。
+带 ★ 的条目是**真机踩出来的**问题 —— 记在这里是为了让下一个人少走一遍。
+
+## [0.1.2] — 2026-09-22
+
+### 修复
+- ★ **安装报「签名错误」**：AGP 自动生成的调试证书**生效时间 = 构建那一刻**，
+  手机时钟稍早即被判"证书尚未生效"。改用**工程自带**的调试密钥
+  （`tools/make-debug-keystore.ps1`，生效时间 2020-01-01 起、有效期 30 年），
+  并在 `app/build.gradle.kts` 里显式绑定。
+- ★ **Termux 脚本回传组件名写错**：`am start -n app.dsh.mobile/.MainActivity` 少写 `.ui`，
+  且后面带 `|| true` → 在手机上"看起来正常、app 收不到地址"。改为 `.ui.MainActivity`，
+  并新增 `tools/check-contracts.ps1` 把这类跨工件漂移变成可执行断言。
+
+### 新增
+- **应用图标**：原创朱红小鲸鱼 + 墨印圈（**不是** DeepSeek 商标的复刻）；
+  `tools/icon-preview.py` 做自适应图标**安全区自检**（首版尾鳍被圆形遮罩切掉、一颗水花 r=29.8 超界，都是它抓的）。
+- **崩溃可查**：`platform/CrashLog.kt` 全局落盘，下次打开弹窗显示 + 一键复制。
+- **构建可信度**：`tools/build-apk.ps1` 每次出包打印 **APK SHA-256 + 签名证书指纹**；
+  并把契约检查与脚本测试前置为构建闸门。
+- `tools/toolchain-env.ps1`：工具链位置的唯一事实源（可用 `$env:DSH_ANDROID_TOOLCHAIN` 覆盖），
+  `gradle.properties` 不再写死 `org.gradle.java.home`。
+- 开源骨架：`LICENSE`(MIT) / `.gitignore` / `CONTRIBUTING.md` / `SECURITY.md` / 本文件 / `docs/` 索引。
+
+### 变更
+- **模式 B 的实测结论**：`--host 0.0.0.0` 被服务端拒绝、`--host <LAN IP>` 配置校验失败
+  → 手机无法直连，必须有转发者；代理链路已端到端实测。
+
+## [0.1.1] — 2026-09-22
+
+### 修复
+- ★ **打开即闪退**：清单 `<application>` 漏写 `android:name=".DshApp"`，
+  导致每个 Activity 里的 `(application as DshApp)` 抛
+  `ClassCastException: android.app.Application cannot be cast to app.dsh.mobile.DshApp`。
+  编译器 / lint / 单测全绿，**只有真机能暴露**。
+- 新增 `ManifestContractTest`（4 项）：Application 必须挂上、每个 `.XxxActivity` 必须能找到源码类、
+  `namespace` 必须等于 `applicationId`、三个 Activity 必须在清单里。
+  并修掉"改了清单 Gradle 会跳过单测"导致的**守卫静默失效**（`inputs.file(...)`）。
+
+## [0.1.0] — 2026-09-22
+
+### 新增
+- 首个可用版本：入口列表 / 添加与编辑（粘贴整行自动识别）/ 全屏 WebView（cookie、外链、上传、下载、重认证）/
+  Termux 联动（RUN_COMMAND + `am start` 回传）。
+- `core/` 纯逻辑：`Endpoint`、`TokenExchange`、`Profile`、`ProfileStore`（文件 + 内存两个适配器）、`TunnelGuidance`。
+- `termux/`：`setup-dsh.sh`、`start-dsh.sh`、`tunnel-to-pc.sh`。
+- `tools/`：工具链下载/安装、构建入口、模式 B 代理与端到端验证、Termux 脚本桩测试。
+- `docs/`：模式 A / 模式 B / 构建与排障三份说明书。
+- 构建链：全程国内镜像（腾讯 AndroidSDK、腾讯 Gradle、aka.ms JDK），实测 5–8 MB/s。
