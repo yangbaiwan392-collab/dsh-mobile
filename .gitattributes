@@ -1,0 +1,22 @@
+# 行尾规范 —— 这不是洁癖：Termux 里的 bash 遇到 CRLF 会直接报 "\r: command not found"，
+# 而 Windows 上 core.autocrlf 默认就可能把 .sh 改成 CRLF（本项目已经踩过一次同类问题）。
+* text=auto eol=lf
+
+# 手机端脚本必须是 LF（Termux / bash）
+*.sh text eol=lf
+
+# Windows 批处理必须 CRLF（裸 LF 会让 if errorlevel / call :label 全崩）
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# PowerShell 用 LF 即可（PowerShell 5.1 与 pwsh 都能读）
+*.ps1 text eol=lf
+
+# 二进制：别做任何行尾处理
+*.apk binary
+*.keystore binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.zip binary
+*.jar binary
