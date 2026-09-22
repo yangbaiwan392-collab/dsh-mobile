@@ -87,6 +87,45 @@ check "退出码 0" "0" "$?"
 check "提示复用" "1" "$(printf '%s' "$OUT2" | grep -c '已有服务在跑')"
 check "仍然给出 APP_URL" "APP_URL=http://127.0.0.1:3099/?token=TESTTOKEN123" "$(printf '%s' "$OUT2" | tail -n 1)"
 
+# ---------- 用例 3：自包含引导（无需存储权限）能自己写出 start-dsh.sh 并跑通 ----------
+echo
+echo "用例 3：phone-bootstrap.sh 自包含引导（不依赖 /sdcard 授权）"
+cat > "$STUB/pkg" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat > "$STUB/npm" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "config" ]; then echo "https://registry.npmmirror.com"; fi
+exit 0
+EOF
+cat > "$STUB/node" <<'EOF'
+#!/usr/bin/env bash
+echo v22.0.0
+EOF
+cat > "$STUB/dsh" <<'EOF'
+#!/usr/bin/env bash
+echo "dsh web: http://127.0.0.1:3099/?token=BOOTTOKEN (LAN: http://192.168.0.105:3099/?token=BOOTTOKEN)"
+EOF
+cat > "$STUB/termux-wake-lock" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod +x "$STUB"/*
+# 清掉上一用例留下的日志与"服务已在跑"状态，让它真正走"启动"分支
+rm -rf "$TMP/home/dsh-android" "$TMP/am.calls" "$TMP/home/.dsh-web.log"
+cat > "$STUB/curl" <<'EOF'
+#!/usr/bin/env bash
+exit 7
+EOF
+chmod +x "$STUB/curl"
+OUT3="$(bash "$ROOT/termux/phone-bootstrap.sh" 2>&1)"
+check "退出码 0" "0" "$?"
+check "自己写出了 start-dsh.sh" "yes" "$([ -f "$TMP/home/dsh-android/start-dsh.sh" ] && echo yes || echo no)"
+check "写出的脚本语法正确" "0" "$(bash -n "$TMP/home/dsh-android/start-dsh.sh"; echo $?)"
+check "引导过程拿到 APP_URL" "APP_URL=http://127.0.0.1:3099/?token=BOOTTOKEN" "$(printf '%s' "$OUT3" | tail -n 1)"
+check "引导过程也把地址递给了 app" "start -n app.dsh.mobile/.ui.MainActivity -e dsh_url http://127.0.0.1:3099/?token=BOOTTOKEN" "$(cat "$TMP/am.calls" 2>/dev/null | tr -d '\r')"
+
 # ---------- 汇总 ----------
 echo
 echo "通过 $pass 项，失败 $fail 项"
