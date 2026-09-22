@@ -1,0 +1,14 @@
+{
+  "name": "dsh-install",
+  "private": true,
+  "description": "把 DSH 装在这个项目里（不直接 -g），用 overrides 绕开上游 0.1.5-rc.3 的坏依赖。装完 npm link @deepseek-ai/dsh 即可全局使用 dsh。",
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.5-rc.2"
+  },
+  "overrides": {
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-web-app": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-chat": "0.1.5-rc.2"
+  }
+}

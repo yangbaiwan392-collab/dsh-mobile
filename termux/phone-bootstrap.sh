@@ -71,10 +71,34 @@ if ! pkg install -y nodejs-lts; then pkg install -y nodejs; fi
 command -v node >/dev/null 2>&1 || { echo "!! Node 没装上"; exit 1; }
 echo "    node $(node -v) / npm $(npm -v)"
 
-# ---------- 装 DSH（走国内镜像：手机 VPN 常不稳） ----------
+# ---------- 装 DSH（走国内镜像 + 绕开上游坏发布） ----------
 npm config set registry https://registry.npmmirror.com >/dev/null
 echo "==> 安装 DSH（最慢的一步，几分钟正常；registry=$(npm config get registry)）"
-npm i -g @deepseek-ai/dsh
+# 上游 0.1.5-rc.3 那个发布坏了：sidebar 发了 rc.3，配套的 documentpreview 没发，
+# 而 ^0.1.5-rc.3 按 semver 只匹配 0.1.5 系列 → 全新安装必 ETARGET。
+# 用 overrides 钉到已知可用的 rc.2 组合（本机实测 584 个包解析通过）。
+INSTALL_DIR="$HOME/dsh-install"
+mkdir -p "$INSTALL_DIR"
+cat > "$INSTALL_DIR/package.json" <<'JSON'
+{
+  "name": "dsh-install",
+  "private": true,
+  "dependencies": { "@deepseek-ai/dsh": "0.1.5-rc.2" },
+  "overrides": {
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-web-app": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-chat": "0.1.5-rc.2"
+  }
+}
+JSON
+( cd "$INSTALL_DIR" && npm install --no-audit --no-fund )
+npm link @deepseek-ai/dsh >/dev/null 2>&1 || true
+if ! command -v dsh >/dev/null 2>&1; then
+  export PATH="$INSTALL_DIR/node_modules/.bin:$PATH"
+  grep -q 'dsh-install/node_modules/.bin' "$HOME/.bashrc" 2>/dev/null || \
+    echo 'export PATH="$HOME/dsh-install/node_modules/.bin:$PATH"' >> "$HOME/.bashrc"
+fi
 command -v dsh >/dev/null 2>&1 || { echo "!! dsh 没装上：看上面的 npm 报错"; exit 1; }
 
 # ---------- 唤醒锁 ----------

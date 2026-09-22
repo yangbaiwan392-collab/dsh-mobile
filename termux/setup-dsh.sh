@@ -46,8 +46,38 @@ npm config set registry https://registry.npmmirror.com
 echo "    当前 registry: $(npm config get registry)"
 
 echo "==> 安装 DSH（这一步最慢，几分钟正常）"
-npm i -g @deepseek-ai/dsh
-command -v dsh >/dev/null 2>&1 || { echo "!! dsh 没装上：看上面的 npm 报错"; exit 1; }
+# ⚠ 不要用 `npm i -g @deepseek-ai/dsh`：上游当前发布树是坏的 ——
+#   dsh-client-ui-sidebar 有一个乱序发布的 0.1.5-rc.3，而配套的
+#   dsh-client-ui-sidebar-documentpreview 没有 rc.3（只有 rc.1/rc.2，然后跳到 alpha）；
+#   `^0.1.5-rc.3` 按 semver 只匹配 0.1.5 系列 → 无解 → npm ETARGET，全新安装必失败。
+# 做法：装进项目目录，用 overrides 把相关子包钉到已知可用的 rc.2 组合，再 npm link 暴露 dsh 命令。
+# 实测：该组合 584 个包全部解析成功（见 tools/probe-dsh-versions.ps1）。
+INSTALL_DIR="$HOME/dsh-install"
+mkdir -p "$INSTALL_DIR"
+cat > "$INSTALL_DIR/package.json" <<'JSON'
+{
+  "name": "dsh-install",
+  "private": true,
+  "dependencies": { "@deepseek-ai/dsh": "0.1.5-rc.2" },
+  "overrides": {
+    "@deepseek-ai/dsh-client-ui-sidebar": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-web-app": "0.1.5-rc.2",
+    "@deepseek-ai/dsh-client-ui-chat": "0.1.5-rc.2"
+  }
+}
+JSON
+( cd "$INSTALL_DIR" && npm install --no-audit --no-fund )
+npm link @deepseek-ai/dsh >/dev/null 2>&1 || true
+if ! command -v dsh >/dev/null 2>&1; then
+  echo "    （npm link 未生效，改用 PATH 方式）"
+  export PATH="$INSTALL_DIR/node_modules/.bin:$PATH"
+  if ! grep -q 'dsh-install/node_modules/.bin' "$HOME/.bashrc" 2>/dev/null; then
+    echo 'export PATH="$HOME/dsh-install/node_modules/.bin:$PATH"' >> "$HOME/.bashrc"
+    echo "    已写入 ~/.bashrc（新开终端自动生效）"
+  fi
+fi
+command -v dsh >/dev/null 2>&1 || { echo "!! dsh 仍不可用：把上面的 npm 报错发出来"; exit 1; }
 echo "    dsh $(dsh --version 2>/dev/null || echo '(已安装)')"
 
 # 唤醒锁：Android 13 后台限制很严，没有它 Termux 进程会被冻结
