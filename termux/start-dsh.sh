@@ -10,6 +10,19 @@ LOG="$HOME/.dsh-web.log"
 # 本 app 的组件名（与 AndroidManifest 里的 .ui.MainActivity 对应；tools/check-contracts.ps1 会核对这行）
 APP_COMPONENT='app.dsh.mobile/.ui.MainActivity'
 
+# 解析 dsh 命令：优先 PATH，其次项目本地安装。
+# 为什么需要兜底：上游坏依赖（0.1.5-rc.3）让 `npm link <包名>` 必定失败 ——
+# 它会回 registry 重新解析。所以我们用 ~/dsh-install 里的 .bin（见 docs/01）。
+DSH_BIN=""
+if command -v dsh >/dev/null 2>&1; then
+  DSH_BIN="dsh"
+elif [ -x "$HOME/dsh-install/node_modules/.bin/dsh" ]; then
+  DSH_BIN="$HOME/dsh-install/node_modules/.bin/dsh"
+else
+  echo "!! 找不到 dsh 命令。先按 docs/01-termux-local.md 在 ~/dsh-install 里装好。"
+  exit 1
+fi
+
 url_from_log() {
   [ -f "$LOG" ] || return 1
   # DSH 自己打印的那行： dsh web: http://127.0.0.1:<port>/?token=<...>   （可能带 " (LAN: ...)" 后缀）
@@ -31,7 +44,7 @@ if curl -s -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null; then
 else
   echo "==> 启动 dsh web --port $PORT（后台，日志 $LOG）"
   : > "$LOG"
-  nohup dsh web --port "$PORT" --no-open >>"$LOG" 2>&1 &
+  nohup "$DSH_BIN" web --port "$PORT" --no-open >>"$LOG" 2>&1 &
   URL=""
   for _ in $(seq 1 60); do
     URL="$(url_from_log || true)"

@@ -1,28 +1,39 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # 手机端**自包含引导**（不依赖 /sdcard 权限）。
 #
-# ⚠ 不要把这个文件"整段复制粘贴"进 Termux —— 它内部有两个 heredoc，
+# ⚠ 不要把这个文件"整段复制粘贴"进 Termux —— 它内部有 heredoc，
 #   多行粘贴在 Termux 里会被截断（真机踩过：cat 写出 0 字节文件 → npm EJSONPARSE）。
-#   正确用法二选一：
-#     · 用 MTP 把它当**文件**拷进手机，再 `bash ~/storage/downloads/phone-bootstrap.sh`
-#     · 或不要用它，改为按 README FAQ 里的**单行命令**手工装（那行是单行，粘贴安全）
+#   正确用法：用 MTP 把它当**文件**拷进手机，再 `bash ~/storage/downloads/phone-bootstrap.sh`
 #
-# 它做四件事：写出 ~/dsh-android/start-dsh.sh（因此 app 的「启动手机上的 DSH」按钮可用）
-# → 装依赖 → 装 DSH（含绕开上游坏发布的 overrides 配方）→ 拿唤醒锁并启动。
+# 它做五件事：写出 ~/dsh-android/start-dsh.sh（因此 app 的「启动手机上的 DSH」按钮可用）
+# → 装依赖（含 node-pty 编译工具链）→ 装 DSH（绕开上游坏发布 + 放行安装脚本）
+# → 把 dsh 命令暴露出来 → 拿唤醒锁并启动。
 set -euo pipefail
 
 SCRIPT_DIR="$HOME/dsh-android"
+INSTALL_DIR="$HOME/dsh-install"
 mkdir -p "$SCRIPT_DIR"
 
-# ---------- 写出 start-dsh.sh（与 termux/start-dsh.sh 行为一致的精简版） ----------
+# ---------- 预检：Termux 滚动仓库常处于"升级了一半"的状态 ----------
+if ! curl --version >/dev/null 2>&1; then
+  echo "!! curl 无法运行：请先执行  apt update && apt full-upgrade -y  再重跑本脚本。"
+  exit 1
+fi
+
+# ---------- 写出 start-dsh.sh ----------
+# ⚠ 这段与 termux/start-dsh.sh 是同一份逻辑的两处副本（本脚本要自包含）。
+#   tools/test-termux-scripts.sh 会分别跑这两份，保证行为一致。
 cat > "$SCRIPT_DIR/start-dsh.sh" <<'SH'
 #!/data/data/com.termux/files/usr/bin/bash
 # 启动（或复用）手机本地 DSH Web，并把带 token 的 URL 交给 app。
-# 判据：退出码 0 且最后一行是 APP_URL=<...>
 set -euo pipefail
 PORT="${1:-${DSH_PORT:-3080}}"
 LOG="$HOME/.dsh-web.log"
 APP_COMPONENT='app.dsh.mobile/.ui.MainActivity'
+DSH_BIN=""
+if command -v dsh >/dev/null 2>&1; then DSH_BIN="dsh"
+elif [ -x "$HOME/dsh-install/node_modules/.bin/dsh" ]; then DSH_BIN="$HOME/dsh-install/node_modules/.bin/dsh"
+else echo "!! 找不到 dsh 命令，先按 docs/01-termux-local.md 安装"; exit 1; fi
 url_from_log() {
   [ -f "$LOG" ] || return 1
   local line
@@ -35,7 +46,7 @@ if curl -s -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null; then
 else
   echo "==> 启动 dsh web --port $PORT（日志 $LOG）"
   : > "$LOG"
-  nohup dsh web --port "$PORT" --no-open >>"$LOG" 2>&1 &
+  nohup "$DSH_BIN" web --port "$PORT" --no-open >>"$LOG" 2>&1 &
 fi
 URL=""
 for _ in $(seq 1 60); do
@@ -59,12 +70,6 @@ SH
 chmod +x "$SCRIPT_DIR/start-dsh.sh"
 
 # ---------- 装依赖 ----------
-# 预检：Termux 滚动仓库常处于"升级了一半"的状态（新 libcurl + 旧 openssl 会让 curl 崩：
-# CANNOT LINK EXECUTABLE ... SSL_set_quic_tls_early_data_enabled），届时 pkg/npm 会连锁失败。
-if ! curl --version >/dev/null 2>&1; then
-  echo "!! curl 无法运行：请先执行  apt update && apt full-upgrade -y  再重跑本脚本。"
-  exit 1
-fi
 echo "==> 更新包索引"
 pkg update -y >/dev/null
 echo "==> 安装 curl / openssh / termux-api"
@@ -74,18 +79,15 @@ if ! pkg install -y nodejs-lts; then pkg install -y nodejs; fi
 command -v node >/dev/null 2>&1 || { echo "!! Node 没装上"; exit 1; }
 echo "    node $(node -v) / npm $(npm -v)"
 
-# ---------- 装 DSH（走国内镜像 + 绕开上游坏发布） ----------
-npm config set registry https://registry.npmmirror.com >/dev/null
-echo "==> 安装 DSH（最慢的一步，几分钟正常；registry=$(npm config get registry)）"
-# node-pty 无 android-arm64 预编译、且被顶层饿加载 → 必须先有 python/clang/make 才能编出来
+# node-pty 无 android-arm64 预编译，且被顶层饿加载 → 必须先有编译工具链
 if ! command -v python3 >/dev/null 2>&1 || ! command -v clang >/dev/null 2>&1; then
   echo "==> 安装编译工具链（python / clang / make）"
   pkg install -y python clang make
 fi
-# 上游 0.1.5-rc.3 那个发布坏了：sidebar 发了 rc.3，配套的 documentpreview 没发，
-# 而 ^0.1.5-rc.3 按 semver 只匹配 0.1.5 系列 → 全新安装必 ETARGET。
-# 用 overrides 钉到已知可用的 rc.2 组合（本机实测 584 个包解析通过）。
-INSTALL_DIR="$HOME/dsh-install"
+
+# ---------- 装 DSH ----------
+npm config set registry https://registry.npmmirror.com >/dev/null
+echo "==> 安装 DSH（最慢的一步；registry=$(npm config get registry)）"
 mkdir -p "$INSTALL_DIR"
 cat > "$INSTALL_DIR/package.json" <<'JSON'
 {
@@ -97,11 +99,21 @@ cat > "$INSTALL_DIR/package.json" <<'JSON'
     "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": "0.1.5-rc.2",
     "@deepseek-ai/dsh-web-app": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-chat": "0.1.5-rc.2"
+  },
+  "allowScripts": {
+    "node-pty": true,
+    "@deepseek-ai/dsh-subprocess-local": true,
+    "koffi": true,
+    "protobufjs": true
   }
 }
 JSON
 ( cd "$INSTALL_DIR" && npm install --no-audit --no-fund )
-npm link @deepseek-ai/dsh >/dev/null 2>&1 || true
+command -v dsh >/dev/null 2>&1 || {
+  # 不用 npm link <包名>：它会回 registry 重新解析，必然再撞上游坏依赖
+  ln -sf "$INSTALL_DIR/node_modules/.bin/dsh" "$PREFIX/bin/dsh" 2>/dev/null || true
+  hash -r 2>/dev/null || true
+}
 if ! command -v dsh >/dev/null 2>&1; then
   export PATH="$INSTALL_DIR/node_modules/.bin:$PATH"
   grep -q 'dsh-install/node_modules/.bin' "$HOME/.bashrc" 2>/dev/null || \

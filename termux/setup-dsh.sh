@@ -61,6 +61,8 @@ fi
 # 实测：该组合 584 个包全部解析成功（见 tools/probe-dsh-versions.ps1）。
 INSTALL_DIR="$HOME/dsh-install"
 mkdir -p "$INSTALL_DIR"
+# allowScripts：npm 11.19+ 默认**不执行**未批准的安装脚本（node-pty 的编译、dsh-subprocess-local
+# 的 ensure-spawn-helper 都在其中，被跳过就等于没装好）。策略可以直接写在 package.json 里。
 cat > "$INSTALL_DIR/package.json" <<'JSON'
 {
   "name": "dsh-install",
@@ -71,6 +73,12 @@ cat > "$INSTALL_DIR/package.json" <<'JSON'
     "@deepseek-ai/dsh-client-ui-sidebar-documentpreview": "0.1.5-rc.2",
     "@deepseek-ai/dsh-web-app": "0.1.5-rc.2",
     "@deepseek-ai/dsh-client-ui-chat": "0.1.5-rc.2"
+  },
+  "allowScripts": {
+    "node-pty": true,
+    "@deepseek-ai/dsh-subprocess-local": true,
+    "koffi": true,
+    "protobufjs": true
   }
 }
 JSON
