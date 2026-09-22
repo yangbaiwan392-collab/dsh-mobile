@@ -75,6 +75,20 @@ if ($Task -like 'assemble*' -and -not $Clean) {
             $certs = & "$Sdk\build-tools\34.0.0\apksigner.bat" verify --print-certs $target 2>&1 |
                 Select-String -Pattern 'certificate SHA-256 digest' | Select-Object -First 1
             if ($certs) { Write-Host ("      签名证书 : {0}" -f ($certs.Line -replace '^.*digest:\s*', '')) }
+
+            # 检查**产物内部**真的带上了手机侧脚本：app 靠它们把 DSH 装进 Termux，
+            # "Gradle 说成功"不等于"用户点下去能成"（这类事今天已经吃过一次）。
+            Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+            $zip = [IO.Compression.ZipFile]::OpenRead($target)
+            try {
+                $assets = $zip.Entries | Where-Object { $_.FullName -like 'assets/termux/*.sh' } |
+                    ForEach-Object { $_.FullName.Split('/')[-1] }
+                $missing = @('setup-dsh.sh', 'start-dsh.sh', 'tunnel-to-pc.sh') | Where-Object { $_ -notin $assets }
+                if ($missing.Count -gt 0) {
+                    throw "APK 里缺手机侧脚本：$($missing -join ', ')（检查 build.gradle.kts 的 syncTermuxScripts）"
+                }
+                Write-Host ("      手机侧脚本 : {0}" -f ($assets -join ', ')) -ForegroundColor DarkGray
+            } finally { $zip.Dispose() }
         }
     }
 }

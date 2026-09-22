@@ -37,6 +37,30 @@
 - `tools/test-termux-scripts.sh` 扩到 **4 个用例 / 19 项**：新增"自包含引导"与"curl 崩溃预检"回归；
   并修正 curl 桩必须支持 `--version`（预检会调用它）。
 
+## [0.1.4] — 2026-09-22
+
+### 新增
+- **一键装/启（模式 A）**：手机侧脚本打包进 APK 的 assets（构建时从 `termux/` 同步），
+  由 app 经 Termux 的 `RUN_COMMAND` 现场写进 `~/dsh-android/` 再执行。
+  用户不再需要 MTP 拷文件、不再需要手敲命令 —— 真机验证脚本与仓库**逐字节一致**（sha256 比对）。
+- **环境自检**：菜单项，逐环检查（脚本/allow-external-apps/node/dsh/node-pty 产物/wasm sharp/进程/端口/入口地址），
+  结果回传到 app 内显示、可复制。
+- **剪贴板通道**：见下方修复。
+- 自动命名：本机 → 「手机本地」，远程 → 「远程 <主机>」（原先一律叫「手机本地」，两条入口同名）。
+- 工具：`tools/tap-by-text.ps1`（按文字精确点击，优先精确匹配）、`tools/inspect-apk-layout.py`（APK 体积异常定位）。
+
+### 修复
+- ★ **Android 拦后台应用启动页面**：`ActivityTaskManager: Background activity launch blocked!
+  [callingPackage: com.termux …]` —— Termux 在后台时脚本里的 `am start -e dsh_url/dsh_diag` 会被系统丢弃。
+  → 入口地址与自检报告**同时写进剪贴板**（写入不受限、前台 app 可读），app 在 `onResume` 与点击后短轮询时收下；
+  `am start` 保留作为"Termux 恰好在前台"时的快路径。判据在 `core/ClipboardIntake.kt`（认不出就什么都不做）。
+- ★ **`Permission Denial: Accessing service com.termux/.app.RunCommandService … requires
+  com.termux.permission.RUN_COMMAND`**：权限声明了但 `adb install` 不授予 → app 现在会**当场申请**并给出准确提示
+  （原先的错误提示甩锅给 allow-external-apps）；`ManifestContractTest` 增加声明守卫。
+- ★ **`cat > "~/dsh-android/x.sh"` 写不出文件**（真机表现为"目录建好了、文件是空的"）：
+  **bash 不在双引号里展开 `~`** → 生成的命令改用 `$HOME`，并加回归测试（断言不出现 `"~/`）。
+- 单测 **25 → 39** 项（新增命名、Termux 命令生成、剪贴板判据、权限声明守卫）。
+
 ## [0.1.3] — 2026-09-22
 
 ### 新增

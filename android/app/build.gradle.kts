@@ -14,6 +14,21 @@ tasks.withType<Test>().configureEach {
     inputs.file("build.gradle.kts").withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
+// 手机侧脚本只有一份事实源：仓库根的 termux/。构建时同步进 APK 的 assets/termux/，
+// 由 app 现场写进 Termux 家目录（用户不再需要手动拷文件）。
+// 同步到 build/ 而不是 src/main/assets/：生成物不该混进源码目录。
+val termuxAssetsDir = layout.buildDirectory.dir("generated/termuxAssets")
+val syncTermuxScripts by tasks.registering(Copy::class) {
+    from(rootProject.file("../termux")) {
+        include("*.sh")
+        // 文本文件保持 LF：CRLF 会让 Termux 里的 bash 报 "\r: command not found"
+    }
+    into(termuxAssetsDir.map { it.dir("termux") })
+    // 内容变了就必须重新同步（否则 APK 里还是旧脚本）
+    inputs.dir(rootProject.file("../termux")).withPathSensitivity(PathSensitivity.RELATIVE)
+}
+tasks.named("preBuild") { dependsOn(syncTermuxScripts) }
+
 android {
     namespace = "app.dsh.mobile"
     // platform-35 已在本机 SDK 里就位；build-tools 固定 34.0.0（镜像上只有 r34）
@@ -25,8 +40,8 @@ android {
         // 用户手机是 Android 13+：把下限抬到 33，省掉一半兼容分支（少分支 = 少屎山）
         minSdk = 33
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.1.3"
+        versionCode = 4
+        versionName = "0.1.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -61,6 +76,9 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
+    // assets/termux/ 由 syncTermuxScripts 生成（见上方）
+    sourceSets.getByName("main").assets.srcDir(termuxAssetsDir)
 }
 
 dependencies {

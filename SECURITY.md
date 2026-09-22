@@ -7,6 +7,21 @@
 - 不读取你的文件系统权限（文件上传走系统文件选择器 SAF，下载走 `DownloadManager`）。
 - 入口地址与 token 存在 app 私有目录（`files/profiles.json`），token 明文存储但不出 app 沙箱。
 
+### 权限说明（**这一条请认真看**）
+
+模式 A 需要 Termux 定义的运行时权限：
+
+```
+com.termux.permission.RUN_COMMAND
+```
+
+系统给你的描述是 *"execute arbitrary commands within Termux environment and access files"*
+（在 Termux 环境里执行任意命令并访问文件）—— 这**本来就是一条很强的授权**，Termux 特意这么写就是为了让人看清楚。
+本 app 用它只做一件事：把**本仓库 `termux/` 目录里那几个脚本**（随 APK 打包、内容公开可审）
+写进 `~/dsh-android/` 并执行。app 没有任何"执行任意命令"的输入口 —— 命令字符串在
+`core/TermuxCommand.kt` 里生成，两个调用点是"写脚本并启动"和"环境自检"。
+不想要这条权限就不授予（模式 A 的一键功能会不可用，但模式 B 与手动粘贴入口不受影响）。
+
 ## 模式 A（手机本地）为什么不引入新风险
 
 DSH 跑在手机自己的 Termux 里，只监听 `127.0.0.1`；app 也在这台设备上访问它。

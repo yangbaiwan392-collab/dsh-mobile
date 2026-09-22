@@ -11,13 +11,13 @@
 
 ## 真机截图
 
-| 入口列表 | WebView 里的 DSH 界面 |
-|---|---|
-| ![入口列表](docs/images/phone-profile-list.png) | ![DSH 界面](docs/images/phone-dsh-ui.png) |
+| 入口列表 | WebView 里的 DSH 界面 | 环境自检 |
+|---|---|---|
+| ![入口列表](docs/images/phone-profile-list.png) | ![DSH 界面](docs/images/phone-dsh-ui.png) | ![环境自检](docs/images/phone-diagnostics.png) |
 
-两张都是 **moto g54（Android 15）** 上的实拍：左边是模式 A 跑通后 app 自动收到的「手机本地」入口
-（Termux 脚本通过 `am start -e dsh_url` 交回来的，含 token）；右边是同一条链路的终点 ——
-真正的 DSH Web 界面在 app 的 WebView 里渲染（HARNESS 侧边栏、新会话、工作区、探索未至之境）。
+三张都是 **moto g54（Android 15）** 上的实拍：左边是模式 A 跑通后 app 自动收到的「手机本地」入口
+（Termux 脚本回传的，含 token）；中间是同一条链路的终点 —— 真正的 DSH Web 界面在 app 的 WebView 里渲染；
+右边是在 Termux 处于后台的情况下拿到的自检报告（走剪贴板通道，见下文）。
 
 ---
 
@@ -65,7 +65,11 @@ Build with `tools/build-apk.ps1`; see `docs/` for the full manuals.
 | 能力 | 说明 |
 |---|---|
 | 多入口 | 手机本地 / 家里 PC / 别的机器，各存一条；点一下就进 |
+| **一键装/启（模式 A）** | 手机侧脚本**打进 APK 的 assets**，由 app 用 Termux 的 RUN_COMMAND **现场写进 Termux 再执行**：不需要 MTP 拷文件、不需要手动敲命令。幂等，可反复点 |
+| **环境自检** | 菜单里一项，把这条链路每一环都查一遍（脚本在不在 / allow-external-apps / node / dsh / node-pty 产物 / wasm sharp / 进程 / 端口探活 / 入口地址），结果回传到 app 里显示并可复制 |
 | 粘贴即识别 | 直接把 DSH 打印的**整行**粘进来即可：`dsh web: http://127.0.0.1:3080/?token=… (LAN: …)` —— 自动摘出地址与 token |
+| **剪贴板通道** | Termux 在后台时，Android 会拦它启动本 app 的页面（`Background activity launch blocked`）→ 所以入口地址与自检报告都**同时写进剪贴板**，app 在前台自动收下（认不出的内容一律忽略） |
+| 自动命名 | 本机入口叫「手机本地」，远程叫「远程 <主机>」——早期版本不管哪来的都叫「手机本地」，两条入口同名分不清（真机发现） |
 | token 自动交换 | 首次加载用带 token 的根 URL，之后靠 cookie；遇到 401/403 会**先自动重试一次**，仍失败才提示 |
 | cookie 持久化 | 复用系统 WebView 的 cookie 存储，30 天内不用重新认证 |
 | 外链与安全 | DSH 之外的所有链接**一律交给系统浏览器**，壳子不当浏览器用 |
@@ -73,7 +77,7 @@ Build with `tools/build-apk.ps1`; see `docs/` for the full manuals.
 | 文件下载 | 走系统 `DownloadManager`，**并把 cookie 带上**（DSH 的文件下载需要认证） |
 | 崩溃可查 | 全局未捕获异常落盘，下次打开弹窗显示，带**一键复制**（不必连电脑抓 logcat） |
 | 手动重认证 | 菜单里「重新认证（清 cookie 再交换 token）」 |
-| Termux 联动 | 「启动手机上的 DSH」按钮通过 Termux `RUN_COMMAND` 触发脚本；脚本跑完用 `am start` 把入口地址**回传**给 app |
+| Termux 联动 | 「启动手机上的 DSH」通过 Termux `RUN_COMMAND` 触发；脚本跑完把入口地址**回传**给 app；首次会当场申请 Termux 的执行权限 |
 
 **刻意不做**（避免功能膨胀）：不含终端模拟器、不内置 DSH、不代管 API key、不做后台常驻服务、不收集任何数据。
 
@@ -161,16 +165,19 @@ android-dsh/
 ├─ android/                                  Gradle 工程（Kotlin + View）
 │  ├─ app/src/main/java/app/dsh/mobile/
 │  │  ├─ core/          ← 纯 Kotlin，可 JVM 单测，不碰 Android
-│  │  │   Endpoint.kt          解析/规范化入口（吃掉整行粘贴、token 摘取、默认端口）
+│  │  │   Endpoint.kt          解析/规范化入口（吃掉整行粘贴、token 摘取、默认端口、自动命名）
 │  │  │   TokenExchange.kt     token→cookie 契约的三个决策
 │  │  │   Profile.kt           入口档案（纯数据）
 │  │  │   ProfileStore.kt      存储接口 + 文件/内存两个适配器（真 seam）
 │  │  │   TunnelGuidance.kt    模式 B 的命令与风险说明（单一出处）
+│  │  │   TermuxCommand.kt     生成交给 Termux 执行的 bash（写脚本 / 环境自检）
+│  │  │   ClipboardIntake.kt   从剪贴板认出"是给我们的入口/报告"（认不出就什么都不做）
 │  │  ├─ web/DshWebView.kt     WebView 的全部复杂度（cookie/外链/上传/下载/重认证）
-│  │  ├─ platform/             TermuxBridge（RUN_COMMAND）· CrashLog（崩溃落盘）
+│  │  ├─ platform/             TermuxBridge（RUN_COMMAND + 权限）· CrashLog（崩溃落盘）
 │  │  ├─ ui/                   MainActivity / EditProfileActivity / WebActivity / Nav / ProfileAdapter
 │  │  └─ DshApp.kt             Application：只做"装崩溃记录 + 提供存储"
-│  ├─ app/src/test/            ManifestContractTest + 4 个 core 测试（共 25 项）
+│  ├─ app/src/main/assets/termux/  ← **构建时**从仓库 termux/ 同步（见 build.gradle.kts）
+│  ├─ app/src/test/            7 个测试类（共 39 项，含清单契约与剪贴板判据）
 │  └─ signing/                 调试密钥（**gitignore**，首次构建自动生成）
 ├─ termux/                  手机端脚本：setup-dsh.sh / start-dsh.sh / tunnel-to-pc.sh
 ├─ tools/                   构建与验证脚本（见下表）
@@ -221,15 +228,17 @@ android-dsh/
 
 **已在真机或本机实测**
 
-- [x] **模式 A 全链路在真机上跑通（moto g54 / Android 15）**：Termux 里装好 DSH → `start-dsh.sh` 启动 →
-      打印 `dsh web: http://127.0.0.1:3080/?token=…` → 脚本把地址交给 app → app 自动建档「手机本地」→
+- [x] **模式 A 全链路在真机上跑通（moto g54 / Android 15）**：app 菜单一键 → 脚本从 APK 写进 Termux
+      （三个脚本与仓库**逐字节一致**，sha256 比对过）→ 装好/复用 DSH → 入口地址经剪贴板被 app 收下 →
       点开在 WebView 里渲染出完整 DSH 界面（见上方截图）
-- [x] v0.1.2/0.1.3 在真机上安装并正常启动；v0.1.3 可原地覆盖安装（同一签名密钥）
-- [x] 纯逻辑与契约单测 25/25；Termux 脚本桩测试 20/20（4 个用例）；跨工件契约检查通过
-- [x] 构建链可复现：工具链镜像 5–8 MB/s，`assembleDebug` 成功，产物 11.15 MB
+- [x] **模式 B 在真机上跑通**：手机 → `192.168.0.105:8081`（PC 上的回环改写代理）→ 拿到 30 天会话 cookie
+      → WebView 渲染出**桌面上那个 DSH** 的完整界面；无 token 时是 401（栅栏照样拦）
+- [x] **环境自检在真机上跑通**：Termux 在后台时报告仍能送达（走剪贴板）
+- [x] v0.1.2/0.1.3/0.1.4 在真机上安装并正常启动；可原地覆盖安装（同一签名密钥）
+- [x] 纯逻辑与契约单测 **39/39**；Termux 脚本桩测试 20/20（4 个用例）；跨工件契约检查（6 条）通过
+- [x] 构建链可复现：工具链镜像 5–8 MB/s，`assembleDebug` 成功，产物 12.1 MB；构建脚本会核对**APK 里真有手机侧脚本**
 - [x] APK 元数据：`app.dsh.mobile` / minSdk 33 / targetSdk 35 / launcher = `app.dsh.mobile.ui.MainActivity` / `<application android:name="app.dsh.mobile.DshApp">`
 - [x] 签名：工程自带调试密钥，v2 方案，证书指纹由构建脚本打印
-- [x] 模式 B 的**代理链路**端到端：经代理交换 token 得 `Set-Cookie`，带 cookie 取回 27660 字节的真 SPA
 - [x] DSH 只监听 loopback（两条绑定方式都被实测否掉）
 
 **尚未实测（需要特定条件）**
@@ -312,6 +321,36 @@ Termux 官方在 GitHub 发布 APK，且附 sha256 校验文件，用 PC 下好�
 本仓库的 `tools/` 思路同样适用：下载后**先核对官方 sha256** 再装。
 
 注意：GitHub 发布的是 `github-debug` 构建；若你手机上已装 F-Droid 版且签名不同，需先卸载。
+</details>
+
+<details>
+<summary><b>点「启动手机上的 DSH」提示缺权限 / Termux 没接住请求</b></summary>
+
+本 app 需要 Termux 定义的运行时权限 `com.termux.permission.RUN_COMMAND`（系统描述是
+*execute arbitrary commands within Termux environment and access files*）—— 这是模式 A 能"一键装"的前提。
+**手动安装 APK 时系统会列出来让你同意**；用 `adb install` 装的包不会自动拿到，所以：
+
+- app 内点该按钮时会**当场申请**一次；同意后自动继续。
+- 若系统没弹框：把 app 卸载重装一次即可，或用 `adb shell pm grant app.dsh.mobile com.termux.permission.RUN_COMMAND`。
+- 另一个常见原因是 Termux 侧 `~/.termux/termux.properties` 里的 `allow-external-apps=true` 没开
+  （本 app 的「环境自检」会明确告诉你这一项是 0 还是 1）。
+</details>
+
+<details>
+<summary><b>脚本跑完了，但 app 里没自动出现入口 / 没弹自检报告</b></summary>
+
+Android 10+ **禁止后台应用启动别的应用的页面**，真机上会看到：
+
+```
+E ActivityTaskManager: Background activity launch blocked! [callingPackage: com.termux …]
+```
+
+也就是说：Termux 在后台时，它执行 `am start -e dsh_url …` 会被系统拦掉（Termux 正好在前台时才成功）。
+所以本项目改用**剪贴板**这条不受限的通道：脚本把入口地址/自检报告写进剪贴板，app 在前台自动收下
+（Termux 里跑 `start-dsh.sh` 时也会 `termux-clipboard-set`）。若仍没收到：
+
+- 确认装了 **Termux:API**（`termux-clipboard-set` 来自它）；
+- 回到 app 首页（会自动读一次剪贴板），或手动粘贴：入口地址整行粘进「添加入口」即可。
 </details>
 
 <details>

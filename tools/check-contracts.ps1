@@ -71,6 +71,37 @@ if ($docForm -and $doc01 -notmatch [regex]::Escape($docForm)) {
     $fail.Add("docs/01-termux-local.md 里没提到 app 实际调用的脚本路径：$docForm")
 }
 
+# ---- 契约 4：APK 里要带的脚本清单 ↔ 仓库 termux 目录里真实存在的文件 ----
+# app 现在会把这些脚本**从 APK assets 现场写进 Termux**，所以"名单里有、文件不存在"
+# 会变成用户手机上的一次失败安装 —— 必须在构建前就拦住。
+$termuxCmd = Read-Text 'android/app/src/main/java/app/dsh/mobile/core/TermuxCommand.kt'
+$scriptFilesBlock = [regex]::Match($termuxBridge, 'SCRIPT_FILES\s*=\s*listOf\(([^)]*)\)').Groups[1].Value
+$declared = [regex]::Matches($scriptFilesBlock, '"([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+if ($declared.Count -eq 0) { $fail.Add('TermuxBridge.SCRIPT_FILES 里读不到脚本名单') }
+foreach ($name in $declared) {
+    if (-not (Test-Path (Join-Path $root "termux/$name"))) {
+        $fail.Add("TermuxBridge 声明要带进 APK 的脚本不存在：termux/$name")
+    }
+}
+
+# ---- 契约 5：脚本目录常量两处必须一致（否则 app 写进去、脚本找不到）----
+$coreScriptDir = [regex]::Match($termuxCmd, 'SCRIPT_DIR\s*=\s*"([^"]+)"').Groups[1].Value
+if (-not $coreScriptDir) { $fail.Add('TermuxCommand.kt 里读不到 SCRIPT_DIR') }
+elseif ($coreScriptDir -ne '\$HOME/dsh-android') {
+    # 用 $HOME 而不是 ~：bash 不在双引号里展开 ~（生成的重定向带引号），真机踩过"目录空"的坑
+    $fail.Add("TermuxCommand.SCRIPT_DIR=$coreScriptDir，期望 `$HOME/dsh-android")
+}
+if ($docForm -and -not $docForm.StartsWith('~/dsh-android')) {
+    $fail.Add("app 调用的脚本路径 $docForm 不在 ~/dsh-android 之下")
+}
+
+# ---- 契约 6：自检回传的 extra 键 ↔ app 读的那个键 ----
+$diagExtra = [regex]::Match($navKt, 'EXTRA_DIAG\s*=\s*"([^"]+)"').Groups[1].Value
+if (-not $diagExtra) { $fail.Add('Nav.kt 里读不到 EXTRA_DIAG') }
+elseif ($termuxCmd -notmatch "-e\s+$([regex]::Escape($diagExtra))") {
+    $fail.Add("自检脚本没按 $diagExtra 回传报告（app 读的就是这个键）")
+}
+
 # ---- 输出 ----
 Write-Host "契约检查（跨 Android 工程 / Termux 脚本 / 文档）" -ForegroundColor Cyan
 Write-Host ("  namespace        = {0}" -f $namespace)
@@ -79,6 +110,8 @@ Write-Host ("  期望组件名        = {0}" -f $expectedComponent)
 Write-Host ("  脚本组件名        = {0}" -f $actualComponent)
 Write-Host ("  extra 键          = app:{0}  script:{1}" -f $extraKey, $scriptExtra)
 Write-Host ("  脚本默认路径      = {0}  →  {1}" -f $scriptPath, $resolvedScriptPath)
+Write-Host ("  带进 APK 的脚本   = {0}" -f ($declared -join ', '))
+Write-Host ("  自检回传键        = {0}" -f $diagExtra)
 
 if ($fail.Count -gt 0) {
     Write-Host "`n不一致：" -ForegroundColor Red

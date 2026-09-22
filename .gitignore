@@ -34,3 +34,6 @@ E:/dsh-verify-android/
 # Kotlin/Kotlin-Daemon 的构建期日志
 android/.kotlin/
 *.hprof
+
+# 临时提交信息文件
+_commit-msg.txt

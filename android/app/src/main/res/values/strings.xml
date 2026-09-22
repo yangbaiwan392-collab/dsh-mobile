@@ -9,6 +9,7 @@
     <string name="action_edit">编辑</string>
     <string name="action_delete">删除</string>
     <string name="action_start_local">启动手机上的 DSH</string>
+    <string name="action_diagnostics">环境自检</string>
     <string name="action_how_to_connect">怎么连 PC？</string>
     <string name="action_reauth">重新认证（清 cookie 再交换 token）</string>
     <string name="action_copy_url">复制入口地址</string>
@@ -48,4 +49,5 @@
     <string name="toast_download_failed">下载失败：%1$s</string>
     <string name="toast_reauth_failed">认证失败（HTTP %1$d）。token 可能已过期：去 Termux 或 PC 重新拿一次入口地址。</string>
     <string name="toast_termux_launched">已让 Termux 启动本地 DSH。完成后它会自动把入口地址传回来（首次会请求一次权限）。</string>
+    <string name="toast_run_command_denied">没拿到 Termux 的执行权限：把本 app 卸载重装一次，安装时同意它列出的权限即可</string>
 </resources>

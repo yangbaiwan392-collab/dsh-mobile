@@ -22,6 +22,19 @@ data class Endpoint private constructor(
     /** 列表里显示的名字：去掉 scheme，保留端口。 */
     val displayName: String get() = baseUrl.substringAfter("://")
 
+    /** 是否指向本机（手机自己跑的 DSH）。IPv6 字面量在 URI 里带方括号（`[::1]`），这里归一后判断。 */
+    val isLoopback: Boolean
+        get() = host.lowercase().removeSurrounding("[", "]") in LOOPBACK_HOSTS
+
+    /**
+     * 自动命名：本机 → 「手机本地」，远程 → 「远程 <host>」。
+     *
+     * 为什么需要它：早先不管地址是哪儿，喂进来的入口一律叫「手机本地」——
+     * 于是手机本地和家里电脑两条入口在列表里**同名**，用户根本分不清（真机实测发现）。
+     * 名字只是给人看的、随时能改，关键是别重名。
+     */
+    fun suggestedName(): String = if (isLoopback) LOCAL_NAME else "$REMOTE_PREFIX $host"
+
     /** 首次加载用：带 token 的根 URL（DSH 只在这里接受 token）。 */
     fun authorizeUrl(): String =
         if (token.isNullOrBlank()) "$baseUrl/" else "$baseUrl/?token=$token"
@@ -35,6 +48,13 @@ data class Endpoint private constructor(
     companion object {
         private const val PRINTED_PREFIX = "dsh web:"
         private const val LAN_MARKER = "(LAN:"
+
+        /** 自动命名用的两个词（放这里是为了让"命名规则"只有一处，UI 直接显示）。 */
+        const val LOCAL_NAME = "手机本地"
+        const val REMOTE_PREFIX = "远程"
+
+        private val LOOPBACK_HOSTS = setOf("127.0.0.1", "localhost", "::1", "0.0.0.0")
+
 
         private fun defaultPort(scheme: String) = if (scheme == "https") 443 else 80
 

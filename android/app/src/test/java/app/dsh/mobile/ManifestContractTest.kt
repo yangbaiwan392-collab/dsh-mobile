@@ -33,6 +33,21 @@ class ManifestContractTest {
     }
 
     @Test
+    fun `run-command permission and termux visibility are declared`() {
+        // 缺权限声明 → 真机上 `Permission Denial: Accessing service
+        // com.termux/.app.RunCommandService … requires com.termux.permission.RUN_COMMAND`（踩过）。
+        // 缺 <queries> → Android 11+ 看不见 Termux，装机检测恒为 false。
+        assertTrue(
+            "必须声明 Termux 的 RUN_COMMAND 权限，否则「启动手机上的 DSH」会被系统拒绝",
+            manifest.contains("com.termux.permission.RUN_COMMAND"),
+        )
+        assertTrue(
+            "必须在 <queries> 里声明 com.termux，否则检测不到 Termux 是否安装",
+            Regex("<queries>.*?<package\\s+android:name=\"com\\.termux\"", RegexOption.DOT_MATCHES_ALL).containsMatchIn(manifest),
+        )
+    }
+
+    @Test
     fun `every relative android name maps to a real source file`() {
         val names = Regex("""android:name="\.([A-Za-z0-9_.]+)"""").findAll(manifest).map { it.groupValues[1] }
         val missing = names.filterNot { relative ->
