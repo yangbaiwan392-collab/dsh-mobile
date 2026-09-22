@@ -68,7 +68,13 @@ echo v22.0.0
 EOF
 cat > "$STUB/npm" <<'EOF'
 #!/usr/bin/env bash
-if [ "$1" = "config" ]; then echo "https://registry.npmmirror.com"; fi
+# 模拟 npm：config 打印 registry；rebuild 会**生成** node-pty 的编译产物
+# （脚本里有"产物不存在就 rebuild、还不在就退出"的检查，桩必须能配合它）
+if [ "$1" = "config" ]; then echo "https://registry.npmmirror.com"; exit 0; fi
+if [ "$1" = "rebuild" ]; then
+  mkdir -p "$HOME/dsh-install/node_modules/node-pty/build/Release"
+  : > "$HOME/dsh-install/node_modules/node-pty/build/Release/pty.node"
+fi
 exit 0
 EOF
 
@@ -129,6 +135,7 @@ check "自己写出了 start-dsh.sh" "yes" "$([ -f "$TMP/home/dsh-android/start-
 check "写出的脚本语法正确" "0" "$(bash -n "$TMP/home/dsh-android/start-dsh.sh" 2>/dev/null; echo $?)"
 check "引导过程拿到 APP_URL" "APP_URL=http://127.0.0.1:3099/?token=TESTTOKEN123" "$(printf '%s' "$OUT3" | tail -n 1)"
 check "引导过程也把地址递给了 app" "start -n app.dsh.mobile/.ui.MainActivity -e dsh_url http://127.0.0.1:3099/?token=TESTTOKEN123" "$(cat "$TMP/am.calls" 2>/dev/null | tr -d '\r')"
+check "node-pty 编译产物被补上" "yes" "$([ -f "$TMP/home/dsh-install/node_modules/node-pty/build/Release/pty.node" ] && echo yes || echo no)"
 
 # ---------- 用例 4：curl 崩了（Termux 升级了一半）→ 预检必须拦住并给修复命令 ----------
 echo
