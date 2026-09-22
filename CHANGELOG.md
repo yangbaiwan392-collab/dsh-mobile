@@ -10,6 +10,10 @@
   它会自己写出 `~/dsh-android/start-dsh.sh`，因此 app 里的「启动 DSH」按钮随后仍可用。
 
 ### 修复
+- ★ **`npm i -g @deepseek-ai/dsh` 必定 ETARGET**（上游发布坏了）：`dsh-client-ui-sidebar` 有乱序发布的
+  `0.1.5-rc.3`，配套的 `dsh-client-ui-sidebar-documentpreview` 无 rc.3，而 `^0.1.5-rc.3` 按 semver 只匹配
+  0.1.5 系列 → 无解。改为装进 `~/dsh-install` 项目并用 `overrides` 钉住已知可用的 `0.1.5-rc.2` 组合，
+  再 `npm link` 暴露命令；本机实测该组合 584 个包解析通过。新增 `tools/probe-dsh-versions.ps1` 可复现探测。
 - ★ **Termux "升级了一半"导致 curl 崩溃**：`pkg install` 升级了 `curl`/`libcurl` 但 `openssl` 未同步
   （apt 提示 `N not upgraded`）→ `CANNOT LINK EXECUTABLE "curl": cannot locate symbol "SSL_set_quic_tls_early_data_enabled"`，
   连锁使镜像自检与 `nodejs` 安装全部失败。两个脚本现在都有**预检**：检测到 curl 不可用就停下并打印
