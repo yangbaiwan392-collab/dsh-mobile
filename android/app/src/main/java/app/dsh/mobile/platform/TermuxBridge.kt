@@ -118,6 +118,7 @@ class TermuxBridge(private val context: Context) {
             "start-dsh.sh",
             "tunnel-to-pc.sh",
             "fix-android-runtime.sh",
+            "repair-termux.sh",
         )
     }
 }

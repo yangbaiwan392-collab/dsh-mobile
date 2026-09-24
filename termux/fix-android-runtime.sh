@@ -16,6 +16,8 @@ export PATH="$PREFIX/bin:$PATH"
 # 注意：`adb shell run-as com.termux` 会把 HOME 设成 /data/user/0/com.termux（应用数据根），
 # 而不是 Termux 自己的家目录 —— 所以这里**必须显式**定死，不能用 ${HOME:-...}（踩过）。
 export HOME="/data/data/com.termux/files/home"
+# 无人值守：apt 遇到 conffile 会停下等输入（真机踩过），必须非交互
+export DEBIAN_FRONTEND=noninteractive
 INSTALL_DIR="$HOME/dsh-install"
 NODE="$(command -v node || echo "$PREFIX/bin/node")"
 GYP="$PREFIX/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js"
@@ -29,8 +31,15 @@ echo "==> [1/2] flock（android-arm64 原生模块）"
 if [ -f "$PKG_DIR/bin/system.node" ] && grep -q "platform !== 'android'" "$ADDON_DIR/lib/flock.js" 2>/dev/null; then
   echo "    已经修好，跳过"
 else
-  command -v clang >/dev/null 2>&1 || { echo "!! 缺 clang：先 pkg install -y python clang make"; exit 1; }
-  command -v python3 >/dev/null 2>&1 || { echo "!! 缺 python3：先 pkg install -y python clang make"; exit 1; }
+  # 编译工具链缺失就自己装 —— 这个脚本可能在任何时机被调用（app 的一键流程会先跑它，
+  # 而 clang 是 setup 阶段才装的）。自己保证前提，别把顺序当契约（真机踩过）。
+  if ! command -v clang >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+    echo "    缺编译工具链，先装 python/clang/make（约 1–2 分钟）"
+    pkg install -y python clang make >/dev/null 2>&1 || {
+      echo "!! 装不上 python/clang/make：先解决 Termux 的源/网络"; exit 1
+    }
+  fi
+  command -v clang >/dev/null 2>&1 || { echo "!! clang 仍不可用"; exit 1; }
 
   mkdir -p "$BUILD_DIR/src"
   if [ ! -f "$BUILD_DIR/src/flock.c" ]; then

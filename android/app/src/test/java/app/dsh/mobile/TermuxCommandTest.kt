@@ -60,4 +60,20 @@ class TermuxCommandTest {
         assertTrue("生成的命令里不应出现 \"~/（引号包住的波浪号不会展开）", !cmd.contains("\"~/"))
         assertTrue(cmd.contains("cat > \"\$HOME/dsh-android/setup-dsh.sh\""))
     }
+
+    @Test
+    fun `全程写到日志文件（Termux 后台输出本来无处可看）`() {
+        val cmd = TermuxCommand.installAndStart(scripts)
+        assertTrue(cmd.contains("exec >>\"\$HOME/dsh-android-install.log\" 2>&1"))
+        assertTrue("重定向要在最前面", cmd.indexOf("exec >>") < cmd.indexOf("mkdir -p"))
+    }
+
+    @Test
+    fun `运行时修复只在"已安装"分支预跑（首次那条要等 setup 装好 clang）`() {
+        val cmd = TermuxCommand.installAndStart(scripts)
+        val fixAt = cmd.indexOf("bash \"\$HOME/dsh-android/fix-android-runtime.sh\"")
+        val ifAt = cmd.indexOf("if [ -f \"\$DSH_BIN\" ]")
+        assertTrue("应有修复调用", fixAt > 0)
+        assertTrue("修复调用必须在 if 之后（即已安装分支里）", fixAt > ifAt)
+    }
 }

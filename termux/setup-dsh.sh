@@ -11,17 +11,26 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
-# ---------- 预检：Termux 的滚动仓库很容易处于"升级了一半"的状态 ----------
-# 真实案例（2026-09-22 真机）：安装时升级了 curl/libcurl 8.12→8.22，但 openssl 没跟着升
-# （apt 提示 "72 not upgraded"），于是 curl 报：
-#   CANNOT LINK EXECUTABLE "curl": cannot locate symbol "SSL_set_quic_tls_early_data_enabled"
-# 这种情况下 pkg 的镜像自检、nodejs 安装都会连锁失败 —— 必须先整体升级，而不是继续装。
+# 无人值守安装**绝不能**弹交互提示：apt 遇到 openssl.cnf 这类 conffile 会停下来问
+# "*** openssl.cnf (Y/I/N/O/D/Z) ?"，在后台流程里就是永久卡死（真机踩过）。
+export DEBIAN_FRONTEND=noninteractive
+APT_NONINTERACTIVE=(-y -o Dpkg::Options::=--force-confnew -o Dpkg::Options::=--force-confdef)
+
+# ---------- 预检并**自动修复** Termux 的"升级了一半"状态 ----------
+# 真实案例（两台真机都踩过）：pkg 装了 curl/libcurl 8.12→8.22，但 openssl 没跟着升，
+# 于是 curl 报 CANNOT LINK EXECUTABLE ... SSL_set_quic_tls_early_data_enabled，
+# 连锁让 pkg 的镜像自检、nodejs 安装全部失败 —— 必须整体升级，而不是继续装。
 if ! curl --version >/dev/null 2>&1; then
-  echo "!! curl 无法运行：Termux 的包很可能升级了一半（例如新 libcurl 配旧 openssl）。"
-  echo "   请先执行："
-  echo "       apt update && apt full-upgrade -y"
-  echo "   跑完用 'curl --version' 确认正常，再重新执行本脚本。"
-  exit 1
+  echo "==> curl 不可用（Termux 包树半升级状态），先非交互整体升级修复"
+  dpkg --configure -a >/dev/null 2>&1 || true
+  apt update >/dev/null 2>&1 || true
+  apt "${APT_NONINTERACTIVE[@]}" full-upgrade >/dev/null 2>&1 || true
+  dpkg --configure -a >/dev/null 2>&1 || true
+  if ! curl --version >/dev/null 2>&1; then
+    echo "!! 仍修不好：请在 Termux 里手动跑  apt update && apt -y full-upgrade  （看到 [Y/I/N/O/D/Z] 就按 Y）"
+    exit 1
+  fi
+  echo "    已修复：$(curl --version | head -1)"
 fi
 
 echo "==> 更新包索引"
@@ -29,6 +38,14 @@ pkg update -y >/dev/null
 
 echo "==> 安装依赖（curl / openssh / termux-api）"
 pkg install -y curl openssh termux-api
+
+# 上一步的 pkg install 自己就可能把 curl 升坏（就是这样坏掉的）—— 装完立刻再验一次并自愈
+if ! curl --version >/dev/null 2>&1; then
+  echo "==> 依赖安装把 curl 弄坏了（典型滚动仓库问题），非交互整体升级修复"
+  apt "${APT_NONINTERACTIVE[@]}" full-upgrade >/dev/null 2>&1 || true
+  dpkg --configure -a >/dev/null 2>&1 || true
+fi
+curl --version >/dev/null 2>&1 || { echo "!! curl 仍不可用，先解决 Termux 的源/网络"; exit 1; }
 
 # Node 包名在不同 Termux 版本里可能是 nodejs-lts 或 nodejs —— 装不上就回退，别让整条链断在这
 echo "==> 安装 Node"

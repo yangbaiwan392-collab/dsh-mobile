@@ -26,14 +26,22 @@ object TermuxCommand {
     /** 一行干完：写好脚本 → 缺 DSH 就跑安装，否则直接启动。 */
     fun installAndStart(scripts: Map<String, String>): String = buildString {
         appendLine("set -e")
+        // 全程留痕：Termux 后台执行（RUN_COMMAND）的输出本来谁也看不到，装失败时只能靠猜。
+        // 这里把整个脚本的 stdout/stderr 重定向进文件，出问题可用 adb 直接读出来。
+        appendLine("exec >>\"\$HOME/dsh-android-install.log\" 2>&1")
+        appendLine("echo ''")
+        appendLine("echo \"=== \$(date '+%F %T') 开始 ===\"")
+        appendLine("echo \"Android \$(getprop ro.build.version.release) · 内核 \$(uname -r)\"")
         appendLine("mkdir -p \"$SCRIPT_DIR\"")
         for ((name, body) in scripts) writeFile("$SCRIPT_DIR/$name", body)
         appendLine("chmod +x \"$SCRIPT_DIR\"/*.sh")
         appendLine("echo \"==> 脚本已就位（$SCRIPT_DIR）\"")
-        // Android 运行时修复是幂等的，每次点都跑一遍最省心（首次装完、或升级 DSH 之后都需要）
-        appendLine("[ -f \"$SCRIPT_DIR/fix-android-runtime.sh\" ] && bash \"$SCRIPT_DIR/fix-android-runtime.sh\" || true")
         appendLine("DSH_BIN=\"\$HOME/dsh-install/node_modules/@deepseek-ai/dsh/lib/bin.js\"")
         appendLine("if [ -f \"\$DSH_BIN\" ]; then")
+        // 已装过：这里补跑一次运行时修复（幂等），因为升级 DSH 后可能需要重新编译原生模块。
+        // 首次安装那条分支**不要**在这里跑 —— 它需要 clang，而 clang 是 setup 阶段才装的；
+        // setup-dsh.sh 末尾自己会调用修复脚本（真机踩过这个顺序问题）。
+        appendLine("  [ -f \"$SCRIPT_DIR/fix-android-runtime.sh\" ] && bash \"$SCRIPT_DIR/fix-android-runtime.sh\" || true")
         appendLine("  echo '==> 检测到已安装的 DSH，直接启动'")
         appendLine("  exec bash \"$SCRIPT_DIR/start-dsh.sh\"")
         appendLine("else")

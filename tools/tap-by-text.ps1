@@ -11,8 +11,8 @@
 param(
     [string]$Text,
     [int]$Key,
-    [string]$Ip = '192.168.0.104',
-    [string]$Port = '46393',
+    [string]$Ip,
+    [string]$Port,
     [string]$Remote = '/sdcard/_ui_dump.xml',
     [switch]$NoTap
 )
@@ -21,13 +21,28 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\toolchain-env.ps1"
 $adb = Join-Path $PlatformTools 'adb.exe'
 
-& $adb connect "$Ip`:$Port" 2>&1 | Out-Null
+# 设备解析：给了 -Ip/-Port 就用它；没给就**自动用唯一在线的那台**。
+# （以前这里写死过一台手机的地址，换机后白跑一次 —— 别再写死。）
+if ($Ip) {
+    & $adb connect "$Ip`:$Port" 2>&1 | Out-Null
+    $serial = "$Ip`:$Port"
+} else {
+    $online = (& $adb devices) | Where-Object { $_ -match '\sdevice$' } | ForEach-Object { ($_ -split '\s+')[0] }
+    $online = @($online)
+    if ($online.Count -eq 0) { throw '没有在线设备：先 adb connect <ip>:<port>，或用 -Ip/-Port 指定' }
+    if ($online.Count -gt 1) { throw ("有 $($online.Count) 台在线设备：$($online -join ', ') —— 请用 -Ip/-Port 指定") }
+    $serial = $online[0]
+}
+Write-Host ("设备：{0}" -f $serial) -ForegroundColor DarkGray
 $devices = (& $adb devices) -join "`n"
-if ($devices -notmatch "$([regex]::Escape($Ip))`:$Port\s+device") { throw "设备未连接：$Ip`:$Port" }
+if ($devices -notmatch "$([regex]::Escape($serial))\s+device") { throw "设备未连接：$serial" }
+function Adb { & $adb -s $serial @args }
+$stamp = (Get-Date -Format HH:mm:ss)
+Write-Host ("开始：{0}" -f $stamp) -ForegroundColor DarkGray
 
 if ($Key -gt 0) {
     Write-Host ("按键 event {0}" -f $Key)
-    & $adb shell "input keyevent $Key" | Out-Null
+    Adb shell "input keyevent $Key" | Out-Null
     Start-Sleep -Milliseconds 800
     if (-not $Text) { return }
 }
