@@ -234,7 +234,9 @@ cd android
 
 （`tools\build-apk.ps1` 也会优先用 wrapper —— 与 CI 走同一条路，版本不依赖你本机装了什么 Gradle。）
 
-**工具链位置可移植**：默认 `E:\Android`，换机器设一个环境变量即可，无需改脚本：
+**工具链位置可移植**：优先 `$env:DSH_ANDROID_TOOLCHAIN`，其次 `E:\Android`（作者机器上的位置），
+再退到 `%LOCALAPPDATA%\dsh-android-toolchain`；机器上已经有 `JAVA_HOME` / `ANDROID_HOME` 时也会直接用那份
+（CI 就是这种，那里连 E: 盘都没有）。换个位置设一个环境变量即可，无需改脚本：
 
 ```powershell
 $env:DSH_ANDROID_TOOLCHAIN = 'D:\Android'

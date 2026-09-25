@@ -13,7 +13,8 @@
 | Gradle | 8.11.1（工具链脚本自带） |
 | bash（可选） | `tools/test-termux-scripts.sh` 需要 Git for Windows 自带的 bash |
 
-一条命令准备齐（默认装到 `E:\Android`，可用 `$env:DSH_ANDROID_TOOLCHAIN` 改）：
+一条命令准备齐（工具链位置按 `$env:DSH_ANDROID_TOOLCHAIN` → `E:\Android` →
+`%LOCALAPPDATA%\dsh-android-toolchain` 的顺序找，见 `tools/toolchain-env.ps1`）：
 
 ```powershell
 powershell -File tools\fetch-toolchain.ps1
@@ -51,6 +52,8 @@ Windows / IDE 同理用 `android\gradlew.bat`；`tools/build-apk.ps1` 也会**�
 > `Keystore file '…/signing/debug.keystore' not found`。`build-apk.ps1` 会自动补这一步，
 > 直接调 Gradle 的路径（CI、IDE、其它平台）则要自己跑一次（生成后一直复用，不必每次跑）。
 > 单元测试不需要密钥，所以 `testDebugUnitTest` 在干净克隆里能直接跑通。
+> 另外：**每台机器各自生成的这把密钥都不一样**（随机），所以"自己构建的 APK"与"发布页下载的 APK"
+> 之间**不能互相覆盖升级**（签名不同，得先卸载）—— 自己构建的产物用于验证，发布版用于安装。
 
 > 国内首次拉 distribution（约 130 MB，来自 `services.gradle.org`）可能很慢：
 > 可临时把 `android/gradle/wrapper/gradle-wrapper.properties` 的 `distributionUrl` 换成镜像

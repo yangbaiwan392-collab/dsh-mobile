@@ -81,6 +81,14 @@
   顺带两处让日志说人话：CI 给 Gradle **客户端** JVM 设 `-Dsun.stdout.encoding=UTF-8`
   （`org.gradle.jvmargs` 只管 daemon，runner 的控制台代码页把中文提示写成了 `???`）；
   `make-debug-keystore.ps1` 打印 keytool 信息时不再只匹配中文（英文 JDK 是 `Valid from`，只匹配中文等于什么都不打）。
+- ★ **工具链脚本只会认作者机器上的 `E:\Android`**（CI 的第二个红：契约检查过了、单测过了，
+  卡在"生成调试密钥"）：`tools/toolchain-env.ps1` 里写死 `E:\Android`，而 runner 上**没有 E: 盘**；
+  更隐蔽的是 **pwsh 7 的 `Join-Path` 会校验盘符存在**（Windows PowerShell 5.1 不会），
+  于是它直接崩在 `Cannot find drive. A drive with the name 'E' does not exist` —— 本机永远复现不了。
+  → root 改成按优先级解析（`$env:DSH_ANDROID_TOOLCHAIN` → `E:\Android`（存在时）→
+  `%LOCALAPPDATA%\dsh-android-toolchain`），JDK/SDK 在布局里没有时**直接用机器上已配好的**
+  `JAVA_HOME` / `ANDROID_HOME`（CI runner 正是这种）；拼路径不再用 `Join-Path`；
+  `tools/install-toolchain.ps1` 里两处写死的 `'E:\Android'` 改成 `$AndroidRoot`（否则换机器装不上）。
 - `tools/test-termux-scripts.sh`：curl 预检那条不再写死 `apt full-upgrade`（实现是 `apt -y full-upgrade`，
   测试与实现不同步导致长期红），改为只断言"存在一条 apt 的 full-upgrade 指令"；现 **4 个用例 / 22 项全过**。
 - ★ **自检报告会把入口地址的 token 原样打出来**：`[10] 日志里的入口地址` 直接 `grep` 了 `.dsh-web.log`，

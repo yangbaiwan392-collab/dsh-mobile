@@ -50,7 +50,9 @@ function Invoke-Probe([string]$exe, [string[]]$cmdArgs) {
 New-Item -ItemType Directory -Force -Path $Sdk, "$Sdk\licenses" | Out-Null
 
 # --- JDK ---
-Place "$Dl\jdk17.zip" 'E:\Android' 'jdk17' | Out-Null
+# 必须用 $AndroidRoot（toolchain-env.ps1 解析出来的根），**不要写死 E:\Android** ——
+# 换机器/CI 上没有 E: 盘，写死就等于装不上（同一类问题在 CI 上已经红过一次）。
+Place "$Dl\jdk17.zip" $AndroidRoot 'jdk17' | Out-Null
 $env:JAVA_HOME = $JavaHome
 $env:PATH = "$JavaHome\bin;$env:PATH"
 Write-Host ("  java: {0}" -f (Invoke-Probe "$JavaHome\bin\java.exe" @('-version'))) -ForegroundColor Green
@@ -70,7 +72,7 @@ if (-not (Test-Path $probe) -and (Test-Path "$Sdk\cmdline-tools\latest\cmdline-t
 }
 
 # --- Gradle ---
-Place "$Dl\gradle-8.11.1-bin.zip" 'E:\Android' 'gradle-8.11.1' | Out-Null
+Place "$Dl\gradle-8.11.1-bin.zip" $AndroidRoot 'gradle-8.11.1' | Out-Null
 
 # --- SDK 许可（AGP 会检查 licenses 目录；这是 SDK 官方许可文本的哈希） ---
 $licenseFile = "$Sdk\licenses\android-sdk-license"
