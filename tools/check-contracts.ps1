@@ -102,6 +102,20 @@ elseif ($termuxCmd -notmatch "-e\s+$([regex]::Escape($diagExtra))") {
     $fail.Add("自检脚本没按 $diagExtra 回传报告（app 读的就是这个键）")
 }
 
+# ---- 契约 7：phone-bootstrap.sh 内嵌的 start-dsh.sh 必须与真身逐字一致 ----
+# 为什么值得一条契约：这两份**曾经各自手改而漂移**（内嵌那份少了 DSH_OLLAMA_KEY、也没有唤醒锁，
+# 文件头却写着"拿唤醒锁并启动"）。漂移的后果只有真机才会暴露，正好是契约检查该拦的东西。
+# 判定逻辑放在 sync-bootstrap-embed.ps1 里（-Check 模式），这里只调用它，避免两处实现。
+$syncTool = Join-Path $PSScriptRoot 'sync-bootstrap-embed.ps1'
+if (-not (Test-Path $syncTool)) {
+    $fail.Add('找不到 tools/sync-bootstrap-embed.ps1（契约 7 依赖它）')
+} else {
+    $syncOut = & powershell -NoProfile -ExecutionPolicy Bypass -File $syncTool -Check 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $fail.Add('phone-bootstrap.sh 内嵌的 start-dsh.sh 与真身不一致（跑 tools/sync-bootstrap-embed.ps1 同步）')
+    }
+}
+
 # ---- 输出 ----
 Write-Host "契约检查（跨 Android 工程 / Termux 脚本 / 文档）" -ForegroundColor Cyan
 Write-Host ("  namespace        = {0}" -f $namespace)

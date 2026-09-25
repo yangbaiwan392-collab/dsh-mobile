@@ -14,8 +14,12 @@ import app.dsh.mobile.DshApp
 import app.dsh.mobile.R
 import app.dsh.mobile.core.Endpoint
 import app.dsh.mobile.core.Profile
+import app.dsh.mobile.core.TermuxCommand
+import app.dsh.mobile.core.TermuxStartOutcome
+import app.dsh.mobile.core.TermuxStartReport
 import app.dsh.mobile.core.TunnelGuidance
 import app.dsh.mobile.platform.CrashLog
+import app.dsh.mobile.platform.LocalDshProbe
 import app.dsh.mobile.platform.TermuxBridge
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -184,6 +188,15 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    /**
+     * 一次点击的完整动作：请求 Termux 启动 → **实测端口** → 按实测结果说话。
+     *
+     * 这里的三段是被真机教出来的（摩托 XT2611-1 / Android 16）：
+     *   ① `startService` 不抛异常 ≠ 请求送达 —— DeviceGuard 会把 intent 直接丢掉，
+     *      所以以前那句"已让 Termux 启动本地 DSH"是**谎报**；
+     *   ② 唯一可靠判据是 `127.0.0.1:<port>` 有没有人在听（见 core/TermuxStartReport）；
+     *   ③ 探活是网络 IO，必须离开主线程；同时用 UI 线程轮询剪贴板接收 Termux 回传的地址。
+     */
     private fun startLocalDsh() {
         val bridge = TermuxBridge(this)
         // 缺 Termux 的执行权限时先申请一次（它是 Termux 定义的运行时权限，
@@ -192,20 +205,60 @@ class MainActivity : AppCompatActivity() {
             requestPermissions(arrayOf(TermuxBridge.RUN_COMMAND_PERMISSION), REQ_RUN_COMMAND)
             return
         }
-        val message = bridge.installAndStart()
-            .fold(
-                onSuccess = { getString(R.string.toast_termux_launched) },
-                onFailure = { "Termux 没接住这次请求：\n" + (it.message ?: "") + "\n\n" + bridge.manualSteps().joinToString("\n") { s -> "· $s" } },
+        val result = bridge.installAndStart()
+        if (result.isFailure) {
+            showStartResult(
+                TermuxStartReport.requestFailedMessage(result.exceptionOrNull()?.message) +
+                    "\n\n" + bridge.manualSteps().joinToString("\n") { s -> "· $s" },
+                TermuxStartOutcome.REQUEST_FAILED,
+                bridge,
             )
-        MaterialAlertDialogBuilder(this)
+            return
+        }
+
+        val pending = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.action_start_local)
+            .setMessage(getString(R.string.start_local_pending))
+            .setCancelable(false)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        pending.show()
+
+        Thread {
+            val elapsed = LocalDshProbe.awaitReachable(port = TermuxCommand.LOCAL_PORT) {
+                // 顺手收 Termux 回传的地址（后台启动 Activity 会被系统拦，剪贴板是可靠通道）
+                window.decorView.post { maybeHandleClipboard() }
+            }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                pending.dismiss()
+                val outcome = TermuxStartReport.classify(requestSent = true, portReachable = elapsed != null)
+                val message = if (outcome == TermuxStartOutcome.READY) {
+                    maybeHandleClipboard()
+                    TermuxStartReport.readyMessage(TermuxCommand.LOCAL_PORT)
+                } else {
+                    TermuxStartReport.notStartedMessage(
+                        TermuxCommand.LOCAL_PORT,
+                        ((elapsed ?: AWAIT_LOCAL_DSH_MS) / 1000).toInt(),
+                    )
+                }
+                showStartResult(message, outcome, bridge)
+            }
+        }.start()
+    }
+
+    /** 把结论摊给用户：成功就一句，失败必须同时给出「打开 Termux」这条手动出路。 */
+    private fun showStartResult(message: String, outcome: TermuxStartOutcome, bridge: TermuxBridge) {
+        val builder = MaterialAlertDialogBuilder(this)
             .setTitle(R.string.action_start_local)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)
-            .show()
-        // 脚本跑完会把入口写进剪贴板（后台启动 Activity 会被系统拦），这里也轮询一会儿
-        repeat(8) { i ->
-            window.decorView.postDelayed({ maybeHandleClipboard() }, 2000L * (i + 1))
+        if (TermuxStartReport.offersOpenTermux(outcome)) {
+            builder.setNeutralButton(R.string.action_open_termux) { _, _ ->
+                if (!bridge.openTermux()) toast(getString(R.string.toast_open_termux_failed))
+            }
         }
+        builder.show()
     }
 
     /** 权限申请回来后：拿到了就接着启动，没拿到就把话说清楚。 */
@@ -272,5 +325,8 @@ class MainActivity : AppCompatActivity() {
         const val MENU_DIAGNOSTICS = 3
         const val REQ_RUN_COMMAND = 1001
         const val KEY_LAST_DIAG = "last_diag_report"
+
+        /** 等本地 DSH 起来的总预算，与 ui 里那句提示文案保持一致（已装好的通常十几秒）。 */
+        const val AWAIT_LOCAL_DSH_MS = 90_000L
     }
 }

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -25,6 +26,14 @@ class DshWebView(
     private val fileChooser: FileChooserHost,
     private val onReauth: (status: Int) -> Unit,
     private val onProgress: (Int) -> Unit = {},
+    /**
+     * 主文档**根本没连上**（不是 401、不是子资源失败）。
+     *
+     * 为什么要单独给一条出口：以前这种情况只会把 WebView 自带的
+     * `net::ERR_CONNECTION_REFUSED` 那屏留给用户（真机上他就是这么看到"无法连接"的），
+     * 而"本地 DSH 没在跑"其实有明确的下一步（打开 Termux 就会自动拉起）。
+     */
+    private val onLoadFailed: (Endpoint) -> Unit = {},
 ) {
     /** 需要外部配合的两件事（由 Activity 实现，因为要 startActivityForResult 语义）。 */
     interface FileChooserHost {
@@ -97,6 +106,14 @@ class DshWebView(
                 } else {
                     onReauth(status)
                 }
+            }
+
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                // 只有主文档失败才值得打扰用户：子资源（字体/图标/图片）挂掉不该弹东西。
+                // 401 走上面的 onReceivedHttpError，不会走到这里（HTTP 错误不算 onReceivedError 的范畴）。
+                if (!request.isForMainFrame) return
+                val failed = endpoint ?: return
+                onLoadFailed(failed)
             }
         }
         webView.webChromeClient = object : WebChromeClient() {

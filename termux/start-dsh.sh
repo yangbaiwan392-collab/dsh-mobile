@@ -35,6 +35,38 @@ if command -v termux-wake-lock >/dev/null 2>&1; then
   fi
 fi
 
+# 装一个「打开 Termux 就顺手把 DSH 拉起来」的钩子。
+#
+# 为什么需要它：系统会拦"从停止状态被别的应用拉起"—— 摩托的 DeviceGuard 实测就是这样，
+# 而且连"Termux 已经是前台服务（importance=FOREGROUND_SERVICE）"时都照样以 AutoRun 为由强停：
+#     ApplicationExitInfo: description=stop com.termux due to AutoRun
+# 但**用户自己点开 Termux 不受这个限制**，所以把启动动作挂到 Termux 的交互 shell 上：
+# 只要用户打开一次 Termux，DSH 就自己起来 —— app 里那个按钮被拦时就不再是死路。
+#
+# 幂等：~/.bashrc 里用哨兵注释标记，装过就不再追加，也不动用户已有的其它内容。
+# 只在交互 shell（有 PS1）里生效，所以 RUN_COMMAND 的 `bash -c` 不会触发它、不会递归。
+ensure_bashrc_hook() {
+  local rc="$HOME/.bashrc"
+  local begin='# >>> dsh-android 自动启动 >>>'
+  local end='# <<< dsh-android 自动启动 <<<'
+  if grep -qF "$begin" "$rc" 2>/dev/null; then
+    return 0
+  fi
+  if {
+    printf '\n%s\n' "$begin"
+    printf '%s\n' '# 由 start-dsh.sh 安装：打开 Termux 时若本地 DSH 没在跑，就后台拉起（幂等、失败静默）。'
+    printf '%s\n' 'if [ -n "${PS1:-}" ] && [ -x "$HOME/dsh-android/start-dsh.sh" ]; then'
+    printf '%s\n' '  if ! curl -s -o /dev/null -m 2 "http://127.0.0.1:3080/" 2>/dev/null; then'
+    printf '%s\n' '    ( bash "$HOME/dsh-android/start-dsh.sh" >/dev/null 2>&1 & )'
+    printf '%s\n' '  fi'
+    printf '%s\n' 'fi'
+    printf '%s\n' "$end"
+  } >> "$rc" 2>/dev/null; then
+    echo "==> 已装好 ~/.bashrc 钩子：下次打开 Termux 会自动检查并拉起 DSH"
+  fi
+}
+ensure_bashrc_hook
+
 # 解析 dsh 命令。三条理由决定了这里不走 `dsh` 这个 shim：
 #   1) 上游坏依赖（0.1.5-rc.3）让 `npm link <包名>` 必定失败（它会回 registry 重新解析），所以用 .bin 路径；
 #   2) dsh 的 shebang 是 `#!/usr/bin/env node`，**Android 上没有 /usr/bin/env** ——

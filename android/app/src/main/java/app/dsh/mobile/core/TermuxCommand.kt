@@ -23,6 +23,14 @@ object TermuxCommand {
      */
     const val SCRIPT_DIR = "\$HOME/dsh-android"
 
+    /**
+     * 手机本地 `dsh web` 的默认端口 —— **单一真源**。
+     *
+     * 三处必须一致，改一处就全改：① 启动脚本里的 `PORT="${1:-3080}"`；
+     * ② 自检脚本 [9] 的探活地址；③ app 侧"起来了没有"的实测探针（见 ui/MainActivity）。
+     */
+    const val LOCAL_PORT = 3080
+
     /** 一行干完：写好脚本 → 缺 DSH 就跑安装，否则直接启动。 */
     fun installAndStart(scripts: Map<String, String>): String = buildString {
         appendLine("set -e")
@@ -73,7 +81,7 @@ object TermuxCommand {
         appendLine("add ''")
         appendLine("add '—— 服务与服务日志 ——'")
         appendLine("add \"[8] 进程：\$(pgrep -f 'dsh web' >/dev/null 2>&1 && echo 在跑 || echo 没跑)\"")
-        appendLine("add \"[9] 本地 3080 探活：\$(curl -s -o /dev/null -m 3 -w '%{http_code}' http://127.0.0.1:3080/ 2>/dev/null || echo 连不上)（200=已认证 / 401=在跑但未认证，都算正常；连不上=没在跑）\"")
+        appendLine("add \"[9] 本地 $LOCAL_PORT 探活：\$(curl -s -o /dev/null -m 3 -w '%{http_code}' http://127.0.0.1:$LOCAL_PORT/ 2>/dev/null || echo 连不上)（200=已认证 / 401=在跑但未认证，都算正常；连不上=没在跑）\"")
         appendLine("add \"[10] 日志里的入口地址：\$(grep -m1 'dsh web: ' ~/.dsh-web.log 2>/dev/null || echo '暂无（说明还没成功启动过）')\"")
         appendLine("add ''")
         appendLine("add '—— 沙箱 / 能否执行命令 ——'")

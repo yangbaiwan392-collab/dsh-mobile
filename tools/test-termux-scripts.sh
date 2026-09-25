@@ -159,7 +159,10 @@ OUT4="$(bash "$SETUP_SH" 2>&1)"
 CODE4=$?
 set -e
 check "非零退出（拦住）" "1" "$CODE4"
-check "提示了确切的修复命令" "1" "$(printf '%s' "$OUT4" | grep -c 'apt full-upgrade')"
+# 断言"提示里有一条 apt 的 full-upgrade 指令"，但**不锁具体 flag**：
+# setup-dsh.sh 现在打印的是 `apt update && apt -y full-upgrade`（带 -y 才能在无人值守时用），
+# 以前这里写死 'apt full-upgrade' 就对不上了 —— 测试该盯的是"有没有这条指令"，不是它的写法。
+check "提示了确切的修复命令" "1" "$(printf '%s' "$OUT4" | grep -cE 'apt .*full-upgrade')"
 check "没有继续往下装依赖" "0" "$(printf '%s' "$OUT4" | grep -c '安装依赖')"
 
 # ---------- 汇总 ----------

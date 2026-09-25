@@ -48,6 +48,16 @@
     <string name="toast_download_started">已开始下载（在通知栏看进度）</string>
     <string name="toast_download_failed">下载失败：%1$s</string>
     <string name="toast_reauth_failed">认证失败（HTTP %1$d）。token 可能已过期：去 Termux 或 PC 重新拿一次入口地址。</string>
-    <string name="toast_termux_launched">已让 Termux 启动本地 DSH。完成后它会自动把入口地址传回来（首次会请求一次权限）。</string>
+    <!-- 「启动手机上的 DSH」：措辞必须诚实 —— request 发出去了不等于 DSH 起来了
+         （摩托的 DeviceGuard 会把请求丢掉，而 startService 不报错）。真正的判据是端口探活，
+         所以这里只说"正在等"，结论由 core/TermuxStartReport 决定。 -->
+    <string name="start_local_pending">已把启动请求发给 Termux，正在等本机 DSH 起来…\n（已装好的通常十几秒；首次安装可能要几分钟，那时请看 Termux 窗口里的进度）</string>
+    <string name="action_open_termux">打开 Termux</string>
+    <string name="toast_open_termux_failed">打不开 Termux —— 它可能已被卸载或被停用</string>
+    <string name="toast_termux_opening">已打开 Termux：它会自动把本地 DSH 拉起来（约十几秒），然后回来点「重试」</string>
+
+    <!-- 打开入口却连不上时 -->
+    <string name="web_load_failed_title">打不开这个入口</string>
+    <string name="action_retry">重试</string>
     <string name="toast_run_command_denied">没拿到 Termux 的执行权限：把本 app 卸载重装一次，安装时同意它列出的权限即可</string>
 </resources>

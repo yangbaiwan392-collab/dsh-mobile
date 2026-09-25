@@ -44,6 +44,26 @@ class TermuxBridge(private val context: Context) {
         TermuxCommand.diagnostics(context.packageName, DIAG_ACTIVITY)
     )
 
+    /**
+     * 打开 Termux 的界面 —— 系统自启动限制的**手动兜底**。
+     *
+     * 摩托的 DeviceGuard 拦的是"Termux 从停止状态被别的应用拉起"；**用户手动点开是另一条路**，
+     * 而且 Termux 一旦在前台跑起来，它导出的 RUN_COMMAND 服务就能被正常调用（真机实证）。
+     * `TermuxActivity` 是 Termux 的启动器 Activity（带 LAUNCHER 过滤器 → 必然导出），
+     * 所以这里不需要额外权限，失败只可能是 Termux 被卸载/被禁用。
+     */
+    fun openTermux(): Boolean = try {
+        context.startActivity(
+            Intent().apply {
+                setClassName(TERMUX_PACKAGE, "$TERMUX_PACKAGE.app.TermuxActivity")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        )
+        true
+    } catch (_: Exception) {
+        false
+    }
+
     /** 兼容旧路径：只启动、不写脚本（用户已按 docs/01 自己放过脚本时仍可用）。 */
     fun startLocalDsh(scriptPath: String = DEFAULT_SCRIPT_PATH): Result<Unit> =
         runBash(null, arrayOf(scriptPath))

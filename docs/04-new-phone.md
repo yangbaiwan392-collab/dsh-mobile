@@ -43,11 +43,51 @@ adb shell dumpsys deviceidle whitelist +com.termux
 ```
 没有 adb 的话：系统设置 → 应用 → Termux → 电池 → 选「不限制」。
 
-> **国行 Moto 的两个名称差异**（实测踩过）：
-> - 「关于手机」里那个要连点 7 次的东西，国行叫「**系统标识**」（原生/国际版叫"版本号"）；
-> - 开启后「开发者选项」可能出现在 设置 → 系统 或 设置 → 其他设置 下。
+**但这还不够** —— 2026-09-25 在 moto XT2611-1 / Android 16 上实测出两件事，都得处理：
+
+### ① 唤醒锁（启动脚本已自动带）
+
+不加锁时 Termux 只是**普通后台应用**："清理后台 / 划掉最近任务"会把它强停，DSH 的 node 子进程跟着死。
+系统日志里那条证据非常直白：
+
+```
+ApplicationExitInfo: reason=10 (USER REQUESTED) subreason=21 (FORCE STOP)
+                     description=stop com.termux due to RemoveTaskMemoryClean
+```
+
+`termux/start-dsh.sh` 现在会先跑 `termux-wake-lock`：Termux 变成**前台服务**（常驻一条通知），
+清后台杀不掉（`dumpsys power` 里能看到 `'termux:service-wakelock' … LONG`）。解除用 `termux-wake-unlock`。
+
+### ② ROM 会拦"别的应用启动 Termux"，而且拦了也不报错
+
+现象：app 里点「启动手机上的 DSH」，**请求被系统悄悄丢掉**（`startService` 不抛异常、无返回值，
+所以 app 侧改成**实测 `127.0.0.1:3080` 有没有人在听**来判定成败，见 `core/TermuxStartReport`）。系统日志：
+
+```
+MotoBatteryCareService: isBatteryCareAllowedSelfStart restricted com.termux by mode
+PackageManager: filterSelfStart: callingUid=app.dsh.mobile → target=com.termux
+ActivityManager: Unable to start service Intent { act=com.termux.RUN_COMMAND … }: not found
+DeviceGuard: [AutoRunServices] onSelfStartRestricted → com.termux, fromPkg=app.dsh.mobile
+```
+
+**即使让 Termux 起来了，系统也会在十几秒后以 `due to AutoRun` 再停它一次** ——
+哪怕它已经是前台服务（`importance=125 FOREGROUND_SERVICE`）。所以别和它硬碰，走下面任一条：
+
+1. **让 Termux 常驻**：它活着，app 的按钮和入口就一直好用（唤醒锁保证它活着）。
+2. **打开一次 Termux 就够了**：`start-dsh.sh` 会往 `~/.bashrc` 装一个钩子
+   （"若 3080 没在听，就后台跑一次 start-dsh.sh"），于是**用户自己点开 Termux 就能把 DSH 拉起来**
+   —— 这条路不受自启动策略限制，因为它不是"被别的应用拉起"。
+   app 里"打不开这个入口"的提示会直接给「打开 Termux」按钮，点了之后系统会弹
+   **「DSH 手机端 想要打开 Termux / 打开 · 仅限这一次 · 取消」**（摩托的 `MotoConfirmAppStartActivity`），
+   点「打开」，回到 app 会自动重试并加载成功。
+
+> **国行 Moto 的名称差异与边界**（都实测过）：
+> - 「关于手机」里连点 7 次的那个，国行叫「**系统标识**」（原生/国际版叫"版本号"）；
+> - 「开发者选项」可能在 设置 → 系统 或 设置 → 其他设置 下；
 > - 没有 Play 商店的国行机型也能跑 Termux 与 DSH（Termux 不依赖 Google 服务）；
->   代价是那些 app 收不到推送通知、不能用"Google 账号登录"。
+> - 那个**自启动/关联启动管理界面没有导出**：`com.motorola.deviceguard/.autoRun.activity.AutoRunMainActivity`
+>   用 adb 打不开（`you do not have permission to access it`），电池页与应用信息页里也没有入口
+>   —— 所以这条只能用户在设置里找，agent 帮不上。
 
 ## 四、验证"这部手机能不能让 agent 跑 shell 命令"
 

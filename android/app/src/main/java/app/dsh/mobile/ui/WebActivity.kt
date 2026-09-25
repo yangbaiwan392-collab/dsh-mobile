@@ -17,8 +17,11 @@ import androidx.appcompat.app.AppCompatActivity
 import app.dsh.mobile.DshApp
 import app.dsh.mobile.R
 import app.dsh.mobile.core.Endpoint
+import app.dsh.mobile.core.TermuxStartReport
+import app.dsh.mobile.platform.TermuxBridge
 import app.dsh.mobile.web.DshWebView
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /**
  * 壳子的主屏：一个全屏 WebView。**只有装配代码** —— WebView 的复杂度在 [DshWebView]，
@@ -31,6 +34,15 @@ class WebActivity : AppCompatActivity(), DshWebView.FileChooserHost {
     private lateinit var progress: ProgressBar
     private var pendingFileCallback: ((Array<Uri>?) -> Unit)? = null
     private var endpoint: Endpoint? = null
+
+    /**
+     * 上次主文档加载失败了（连不上）。
+     *
+     * 用来做「去打开 Termux → 回到本页自动重试一次」：用户点完「打开 Termux」这个对话框就关了，
+     * 回来时如果什么都不做，他手里就只剩一屏 err_connection_refused（真机走一遍才发现）。
+     * 只在**确实失败过**时才自动重试，成功后不再打扰（成功路径由 onResume 清掉它）。
+     */
+    private var loadFailed = false
 
     private val pickFiles = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         pendingFileCallback?.invoke(uris?.takeIf { it.isNotEmpty() }?.toTypedArray())
@@ -71,8 +83,37 @@ class WebActivity : AppCompatActivity(), DshWebView.FileChooserHost {
                 progress.progress = value
                 progress.visibility = if (value in 1..99) View.VISIBLE else View.GONE
             },
+            onLoadFailed = { failed ->
+                loadFailed = true
+                showLoadFailed(failed)
+            },
         )
         shell.load(profile.endpoint)
+    }
+
+    /**
+     * 主文档连不上 —— 别把 WebView 自带那屏 `net::ERR_CONNECTION_REFUSED` 丢给用户。
+     *
+     * 本机入口的下一步是确定的：打开 Termux 就会把 DSH 拉起来（~/.bashrc 里的钩子），
+     * 而且这条路不受"自启动策略"限制（用户自己启动 ≠ 被别的应用拉起）。
+     * 远程入口则给隧道/PC 的排查方向（文案在 core/TermuxStartReport 里，有单测）。
+     */
+    private fun showLoadFailed(target: Endpoint) {
+        val builder = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.web_load_failed_title)
+            .setMessage(TermuxStartReport.loadFailedMessage(target, null))
+            .setPositiveButton(R.string.action_retry) { _, _ -> shell.reload() }
+            .setNegativeButton(android.R.string.cancel, null)
+        if (target.isLoopback) {
+            builder.setNeutralButton(R.string.action_open_termux) { _, _ ->
+                if (TermuxBridge(this).openTermux()) {
+                    toast(getString(R.string.toast_termux_opening))
+                } else {
+                    toast(getString(R.string.toast_open_termux_failed))
+                }
+            }
+        }
+        builder.show()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -105,6 +146,11 @@ class WebActivity : AppCompatActivity(), DshWebView.FileChooserHost {
     override fun onResume() {
         super.onResume()
         webView.onResume()
+        // 回到本页：上次连不上就自动重试一次（典型场景：用户刚按提示去打开了 Termux）
+        if (loadFailed) {
+            loadFailed = false
+            shell.reload()
+        }
     }
 
     override fun onPause() {

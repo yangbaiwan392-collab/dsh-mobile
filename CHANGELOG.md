@@ -18,8 +18,42 @@
 ### 新增
 - `termux/phone-bootstrap.sh`：**自包含引导**（贴进 Termux 即可跑，不需要 `/sdcard` 授权、不需要 MTP 传文件），
   它会自己写出 `~/dsh-android/start-dsh.sh`，因此 app 里的「启动 DSH」按钮随后仍可用。
+- 手机本地 DSH 的端口有了**单一真源** `TermuxCommand.LOCAL_PORT`：启动脚本默认值、自检里的探活地址、
+  app 侧"起来了没有"的探针三处共用，改一处即可。
+- **`~/.bashrc` 钩子（由 start-dsh.sh 自动安装）**：打开 Termux 时若 3080 没在听，就后台跑一次 start-dsh.sh。
+  这是给"系统拦别的应用启动 Termux"准备的**不受限入口** —— 用户自己点开 Termux 不属于"被别的应用拉起"。
+  幂等（哨兵注释标记）、只在交互 shell 生效（不会与 RUN_COMMAND 的 `bash -c` 递归）。
+- **WebView 连不上时给下一步**：主文档加载失败不再是 WebView 自带那屏 `net::ERR_CONNECTION_REFUSED`，
+  而是弹「打不开这个入口」：本机入口给「打开 Termux」（点了会触发系统确认框，同意后钩子自动拉起 DSH）
+  +「重试」；远程入口则指向 PC 侧排查（隧道/代理/地址变了）。判定与文案在纯逻辑 `core/TermuxStartReport`
+  （有单测），只对**主文档**失败弹窗（子资源失败不打扰）。
+- 从 Termux 切回本页会**自动重试一次**（只在确实失败过时），否则用户按提示去开完 Termux 回来，
+  手里只剩一屏错误页而没有「重试」可点（真机走一遍才发现）。
+- `tools/sync-bootstrap-embed.ps1`：把 `termux/start-dsh.sh` **逐字**灌进 `phone-bootstrap.sh` 的内嵌段，
+  支持 `-Check` 只核对；`tools/check-contracts.ps1` 新增**契约 7** 调用它，漂了就红。
 
 ### 修复
+- ★ **「启动手机上的 DSH」会谎报成功**（moto XT2611-1 / Android 16 实测）：摩托的 DeviceGuard 把
+  `com.termux/.app.RunCommandService` 的启动请求**直接丢掉**（系统日志
+  `filterSelfStart … Unable to start service … not found`、`stop com.termux due to AutoRun`），
+  而 `Context.startService()` 对"被丢掉"和"成功"一视同仁 —— 既不抛异常也没有返回值，
+  于是 app 弹出"已让 Termux 启动本地 DSH"，用户白等一场。
+  → 判据改成**实测端口**：请求发出后轮询 `127.0.0.1:3080` 最多 90 秒（`platform/LocalDshProbe`，
+  判定与文案在纯逻辑 `core/TermuxStartReport`，有单测 `TermuxStartReportTest`），探到才算成功；
+  没探到就照实说明"请求发出去了但没人监听"，并给出两种解法。UI 同时新增**「打开 Termux」**按钮：
+  系统限制拦的是"从停止状态被别的应用拉起"，用户手动开一次不受影响（开过一次后就顺了）。
+- ★ **DSH 会随 Termux 被系统清理一起消失**：系统 `ApplicationExitInfo` 记录
+  `reason=10 (USER REQUESTED) subreason=21 (FORCE STOP)`、
+  `description=stop com.termux due to RemoveTaskMemoryClean` —— "清理后台 / 划掉最近任务"时
+  Termux 作为**普通后台应用**被强停，node 子进程跟着死；表现是 app 打开本地入口报"无法连接"
+  （**app 与脚本其实都没问题**，是本地服务没了）。
+  → `termux/start-dsh.sh` 现在先 `termux-wake-lock`：Termux 转为**前台服务**（常驻一条通知），
+  清后台不再能杀掉它。
+- `tools/test-termux-scripts.sh`：curl 预检那条不再写死 `apt full-upgrade`（实现是 `apt -y full-upgrade`，
+  测试与实现不同步导致长期红），改为只断言"存在一条 apt 的 full-upgrade 指令"；现 **4 个用例 / 22 项全过**。
+- ★ **`phone-bootstrap.sh` 内嵌的 start-dsh.sh 与真身漂移**：两份各自手改，内嵌那份少了 `DSH_OLLAMA_KEY`、
+  也没有唤醒锁，而文件头却写着"拿唤醒锁并启动"。现在内嵌段 = 真身的**逐字副本**，只能由
+  `tools/sync-bootstrap-embed.ps1` 生成，并由契约 7 核对（自包含的需求仍在，所以不能删掉副本，但可以不让它漂）。
 - ★ **`node-pty` 在手机上编译失败导致 DSH 装不上**：node-pty 只提供 `darwin/linux/win32` 预编译，
   **没有 `android-arm64`**，于是退回 node-gyp 本地编译；而 Termux 默认没有 Python/编译器，
   报 `gyp ERR! find Python ... Could not find any Python installation to use`。
