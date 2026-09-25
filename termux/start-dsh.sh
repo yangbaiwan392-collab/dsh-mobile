@@ -21,6 +21,20 @@ if [ -z "${LD_PRELOAD:-}" ] && [ -f "$PREFIX/lib/libtermux-exec.so" ]; then
   export LD_PRELOAD="$PREFIX/lib/libtermux-exec.so"
 fi
 
+# 拿一把唤醒锁 —— 这是"用一会儿 DSH 就没了"的根治手段（moto XT2611-1 / Android 16 实测）：
+#   系统日志实证：ApplicationExitInfo 里 com.termux 的退出原因是
+#     reason=10 (USER REQUESTED) subreason=21 (FORCE STOP)
+#     description=stop com.termux due to RemoveTaskMemoryClean
+#   即"清理后台/划掉最近任务"时 Termux 作为普通后台应用被强停，node 子进程跟着死。
+#   termux-wake-lock 会让 Termux 变成**前台服务**（常驻一条通知），清后台杀不掉它。
+#   幂等：重复调用只是重新确认；没装 termux-tools（没有这个命令）时静默跳过。
+#   解除：`termux-wake-unlock`，或结束 Termux 进程。
+if command -v termux-wake-lock >/dev/null 2>&1; then
+  if termux-wake-lock 2>/dev/null; then
+    echo "==> 已取得唤醒锁（Termux 转为前台服务，清后台不会再杀掉 DSH）"
+  fi
+fi
+
 # 解析 dsh 命令。三条理由决定了这里不走 `dsh` 这个 shim：
 #   1) 上游坏依赖（0.1.5-rc.3）让 `npm link <包名>` 必定失败（它会回 registry 重新解析），所以用 .bin 路径；
 #   2) dsh 的 shebang 是 `#!/usr/bin/env node`，**Android 上没有 /usr/bin/env** ——
