@@ -5,7 +5,13 @@
 
 ## [Unreleased]
 
-（下一版写在这里。）
+- （下一版写在这里。）
+
+**已知待办（不影响使用，写在这里免得忘）**
+- CI 里用的 actions 版本偏旧：`actions/checkout@v4` / `actions/setup-java@v4` / `actions/upload-artifact@v4` /
+  `gradle/actions/setup-gradle@v4` / `android-actions/setup-android@v3` 已被 GitHub 标记 **Node 20 弃用**（当前仍能跑，只是每次多几条警告）。
+  上游最新分别是 **v7 / v6 / v7 / v6 / v4** —— 升级要**逐个读各自的 breaking changes 再动**，别一次性盲升。
+- 界面回归仍然靠人眼（没有模拟器/仪器测试）；`x86_64` 设备支持与更低的 `minSdk` 都未做，见 README「先说不足」。
 
 ## [0.1.8] — 2026-09-25
 
