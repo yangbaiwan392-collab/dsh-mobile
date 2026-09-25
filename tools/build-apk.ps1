@@ -30,7 +30,14 @@ if (Test-Path $gitBash) {
 . "$PSScriptRoot\toolchain-env.ps1"     # 工具链位置只在 toolchain-env.ps1 里定义
 $ProjectDir  = Join-Path (Split-Path -Parent $PSScriptRoot) 'android'
 
-foreach ($p in @($Jdk, $Sdk, $Gradle, $ProjectDir)) {
+# Gradle 用哪一个：**有 wrapper 就用 wrapper**（与 contributors / CI 走同一条路，
+# 版本由 gradle-wrapper.properties 钉死，不依赖本机装了什么 Gradle）；
+# 没有 wrapper 时才退回本机工具链里的 Gradle。
+$WrapperBat = Join-Path $ProjectDir 'gradlew.bat'
+$UseWrapper = Test-Path $WrapperBat
+$GradleCmd = if ($UseWrapper) { $WrapperBat } else { $Gradle }
+
+foreach ($p in @($Jdk, $Sdk, $GradleCmd, $ProjectDir)) {
     if (-not (Test-Path $p)) { throw "缺东西：$p（先跑 tools\fetch-toolchain.ps1 和 tools\install-toolchain.ps1）" }
 }
 
@@ -48,10 +55,10 @@ $env:ANDROID_SDK_ROOT = $Sdk
 
 $tasks = if ($Clean) { @('clean', $Task) } else { @($Task) }
 $gradleArgs = @('-p', $ProjectDir, '--no-daemon', '--console=plain') + $tasks
-Write-Host ("==> gradle {0}（JAVA_HOME={1}）" -f ($tasks -join ' '), $Jdk) -ForegroundColor Cyan
+Write-Host ("==> gradle {0}（JAVA_HOME={1}；{2}）" -f ($tasks -join ' '), $Jdk, $(if ($UseWrapper) { 'wrapper' } else { $Gradle })) -ForegroundColor Cyan
 Write-Host ("    完整参数：{0}" -f ($gradleArgs -join ' ')) -ForegroundColor DarkGray
 
-& $Gradle @gradleArgs
+& $GradleCmd @gradleArgs
 if ($LASTEXITCODE -ne 0) { throw "gradle 失败（exit $LASTEXITCODE）" }
 
 # 出 APK 的任务顺手报产物路径与大小，并复制一份到 dist/（build/ 会被 clean 清掉，dist/ 不会）

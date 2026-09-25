@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.testing.Test
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -55,6 +56,22 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        // 正式签名：**密钥与口令都不在仓库里**（android/keystore.properties 已被 gitignore）。
+        // 用 tools/make-release-keystore.ps1 生成；仓库里没有它时，下面 release 会退回 debug 签名，
+        // 这样 contributors 仍然能跑 assembleRelease 验证构建 —— 只是产物不能用于分发。
+        create("release") {
+            val propsFile = rootProject.file("keystore.properties")
+            if (propsFile.exists()) {
+                // 注意：这里必须用 import 进来的 Properties；写成 `java.util.Properties()` 会被解析成
+                // Gradle 的 java 扩展（真踩过：Unresolved reference: util）。
+                val props = Properties()
+                propsFile.inputStream().use { stream -> props.load(stream) }
+                storeFile = rootProject.file(props.getProperty("storeFile"))
+                storePassword = props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -64,6 +81,13 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // 有 keystore.properties → 用正式密钥；没有 → 退回 debug 签名（并在构建日志里说清）
+            signingConfig = if (rootProject.file("keystore.properties").exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.lifecycle("release 未配置正式签名（缺 android/keystore.properties）→ 本次用 debug 签名，产物仅供本地验证，不可分发。见 RELEASING.md")
+                signingConfigs.getByName("debug")
+            }
         }
     }
 

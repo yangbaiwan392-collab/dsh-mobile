@@ -1,0 +1,61 @@
+name: 🐞 报告问题
+description: 功能异常、崩溃、装不上、行为与文档不符
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢你来报告。**信息越具体，越可能被修掉。**
+
+        如果只是"某处写法/做法不对"（不一定要先复现），用另一个模板
+        **「🔍 指出我写错了」**更省事 —— 一句话就够。
+  - type: input
+    id: device
+    attributes:
+      label: 机型与 Android 版本
+      placeholder: 例：moto XT2611-1 / Android 16（API 36）
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 哪种模式
+      options:
+        - 模式 A：手机本地（Termux 里跑 DSH）
+        - 模式 B：连 PC 上的 DSH
+        - 只是装 APK / 打开 app 就出问题
+        - 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 期望的行为 vs 实际的行为（有原文报错就贴原文）
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 app …
+        2. 点 …
+        3. 看到 …
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志（可选，但很有用）
+      description: |
+        app 崩溃弹窗里的「复制日志」，或 `adb logcat -b crash -d`；
+        Termux 侧可给 `~/dsh-android-install.log` 的尾部。
+        ⚠️ **请先确认里面没有 token / cookie / 内网地址**。
+      render: text
+  - type: checkboxes
+    id: precheck
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我读过 README 的「先说不足」一节，知道这个项目已知的限制
+        - label: 我贴出来的日志/截图里没有 token、cookie 或内网地址

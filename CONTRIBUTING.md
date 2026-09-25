@@ -35,13 +35,20 @@ powershell -File tools\build-apk.ps1                           # 出 debug APK �
 
 ### 不用 PowerShell 的等价做法
 
+仓库自带 **Gradle Wrapper**（`gradle-wrapper.properties` 钉死 8.11.1），只要有 JDK 17 + Android SDK：
+
 ```bash
-# 手动构建（自己保证 JAVA_HOME / ANDROID_HOME 指向你装的工具链）
 cd android
-JAVA_HOME=/path/to/jdk17 ANDROID_HOME=/path/to/Sdk ./gradlew testDebugUnitTest assembleDebug
-# 注意：仓库里没有 gradlew（Windows 脚本直接调用本地 Gradle）。需要的话先跑一次
-# `gradle wrapper --gradle-version 8.11.1` 生成，再提交 wrapper 文件。
+JAVA_HOME=/path/to/jdk17 ANDROID_HOME=/path/to/Sdk ./gradlew testDebugUnitTest
+JAVA_HOME=/path/to/jdk17 ANDROID_HOME=/path/to/Sdk ./gradlew assembleDebug
 ```
+
+Windows / IDE 同理用 `android\gradlew.bat`；`tools/build-apk.ps1` 也会**优先用 wrapper**（与 CI 同一条路）。
+
+> 国内首次拉 distribution（约 130 MB，来自 `services.gradle.org`）可能很慢：
+> 可临时把 `android/gradle/wrapper/gradle-wrapper.properties` 的 `distributionUrl` 换成镜像
+> （如 `https://mirrors.cloud.tencent.com/gradle/gradle-8.11.1-bin.zip`）。这类镜像会变，先用浏览器确认能下。
+> **别把换过镜像的 properties 提交上来** —— 官方地址对国际贡献者更稳。
 
 ## 代码纪律（评审会照这个看）
 

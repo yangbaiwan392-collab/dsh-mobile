@@ -1,0 +1,64 @@
+name: 🔍 指出我写错了
+description: 一处写法不对、一个概念用错、一个更该这么做的做法 —— 一句话就够，不必先复现
+title: "[指正] "
+labels: ["review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这是本仓库最欢迎的一类 issue —— 作者第一次开源，**最想要的不是 star，而是"你这里写错了"**。
+
+        **不用写长文、不用先复现**。比如：
+
+        > `web/DshWebView.kt` 的 cookie 处理不对：应该用 `CookieManager.setAcceptThirdPartyCookies`
+        > 而不是在 `configure()` 里设一次就走。
+
+        被采纳的指正会**记名致谢**（写进 `CHANGELOG.md`，除非你说不要）。
+  - type: input
+    id: where
+    attributes:
+      label: 在哪
+      description: 文件路径（能给出行号更好）
+      placeholder: 例：android/app/src/main/java/app/dsh/mobile/web/DshWebView.kt:69
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: 现在是怎么写的 / 怎么做的
+      placeholder: 贴那一小段代码或描述那段逻辑
+    validations:
+      required: true
+  - type: textarea
+    id: should
+    attributes:
+      label: 应该怎么做
+      description: 一句话也行；能给出替代写法/API 更好
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: 为什么（可选）
+      description: 会踩什么坑、违反哪条平台规则或最佳实践、有没有官方文档/出处
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 属于哪类（帮助作者归档）
+      options:
+        - 安全（凭据 / 明文 / 权限 / WebView 配置）
+        - Android 平台正确性（前台服务 / 权限 / 生命周期 / 分区存储 / 电量）
+        - Termux 集成的正确姿势
+        - Kotlin 结构与命名
+        - 构建与测试
+        - 文档写错了
+        - 其它
+    validations:
+      required: true
+  - type: checkboxes
+    id: credit
+    attributes:
+      label: 署名
+      options:
+        - label: 可以在 CHANGELOG 里提到我的 GitHub 用户名（不勾就匿名致谢）
+          required: false

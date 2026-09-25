@@ -16,6 +16,15 @@
   现在两个脚本都显式检查 `pty.node` 并在缺失时 rebuild。
 
 ### 新增
+- **CI**（`.github/workflows/ci.yml`）：每次 push / PR 跑 契约检查 + Termux 脚本桩测试 + 单测 + 出包，
+  并把 debug APK 作为构建产物上传。**只覆盖"不需要真机"的部分** —— 界面回归仍然靠人眼（见 README「先说不足」）。
+- **Gradle Wrapper**（`gradle-wrapper.properties` 钉 8.11.1）：`tools/build-apk.ps1` 与 CI 都**优先用 wrapper**，
+  于是别人 clone 后只要有 JDK 17 + Android SDK 就能构建，不必装特定版本 Gradle。
+- **正式签名**：`tools/make-release-keystore.ps1`（默认**拒绝覆盖**已有密钥 —— 覆盖等于毁掉升级路径）
+  + `RELEASING.md`（含"密钥丢了就再也无法给已装用户升级"这类不可逆代价）+ `build.gradle.kts` 的 release 分支：
+  有 `android/keystore.properties` 就用正式密钥，没有则**退回 debug 签名并在构建日志里说明"不可分发"**（contributor 仍能跑 `assembleRelease`）。
+- **issue 模板**：🐞「报告问题」/ 🔍「指出我写错了」（后者一句话 + 可选行号即可，正对 README 里那个邀请）
+  + `config.yml`（安全类问题指向 `SECURITY.md`，不开公开 issue）。
 - `termux/phone-bootstrap.sh`：**自包含引导**（贴进 Termux 即可跑，不需要 `/sdcard` 授权、不需要 MTP 传文件），
   它会自己写出 `~/dsh-android/start-dsh.sh`，因此 app 里的「启动 DSH」按钮随后仍可用。
 - 手机本地 DSH 的端口有了**单一真源** `TermuxCommand.LOCAL_PORT`：启动脚本默认值、自检里的探活地址、

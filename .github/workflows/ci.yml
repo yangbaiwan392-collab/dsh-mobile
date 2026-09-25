@@ -1,0 +1,60 @@
+# CI：每次 push / PR 都跑一遍"这个仓库还自洽吗"
+#
+# 为什么值得有：作者只有两台真机、没有模拟器，界面回归靠人眼（见 README「先说不足」）。
+# 那就至少把**不需要真机**的部分自动化：跨工件契约、Termux 脚本桩测试、单元测试、能否出包。
+# 用 windows-latest：本项目的工具链是 PowerShell 优先（契约检查里显式调 `powershell`），
+# 而 runner 上 bash 也有（Git Bash）→ 两类脚本都能跑。
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: 契约 · 脚本 · 单测 · 出包
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 装 Android SDK（compileSdk 35）
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0'
+
+      - name: Gradle 缓存
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 跨工件契约检查（Termux 脚本 ↔ Android 工程 ↔ 文档）
+        shell: pwsh
+        run: ./tools/check-contracts.ps1
+
+      - name: Termux 脚本桩测试（用桩命令真跑手机脚本）
+        shell: bash
+        run: ./tools/test-termux-scripts.sh
+
+      - name: 单元测试
+        shell: pwsh
+        run: ./android/gradlew.bat -p android --no-daemon testDebugUnitTest
+
+      - name: 出 debug APK（顺带验证能构建）
+        shell: pwsh
+        run: ./android/gradlew.bat -p android --no-daemon assembleDebug
+
+      - name: 上传 APK 作为构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-mobile-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

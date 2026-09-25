@@ -15,6 +15,14 @@ android/local.properties
 # 代价：不同机器构建出的 APK 签名不同 → 换机器重装需先卸载。
 android/signing/debug.keystore
 
+# ---- 正式签名：**绝不进版本库** ----
+# 由 tools/make-release-keystore.ps1 生成（见 RELEASING.md）。
+# keystore.properties 里是明文口令；release.keystore 是私钥。
+# 丢了 = 无法给已安装用户发升级包；泄漏 = 别人能以你的名义发包。
+android/keystore.properties
+android/signing/release.keystore
+*.jks
+
 # ---- 发给手机的东西（体积大、且可从源码重建）----
 dist/
 phone/

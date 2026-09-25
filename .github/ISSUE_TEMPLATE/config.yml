@@ -1,0 +1,10 @@
+# issue 模板配置
+# 安全类问题**不要**开公开 issue（见 SECURITY.md），所以这里给一个显式的指路链接。
+blank_issues_enabled: true
+contact_links:
+  - name: 🔐 报告安全问题（不要开公开 issue）
+    url: https://github.com/yangbaiwan392-collab/dsh-mobile/blob/main/SECURITY.md
+    about: 凭据处理、明文 HTTP、代理绕过信任栅栏这几处的风险与代价都写在 SECURITY.md 里；请按那里写的方式私密联系。
+  - name: 📖 先读 README 的「先说不足」
+    url: https://github.com/yangbaiwan392-collab/dsh-mobile#%E5%85%88%E8%AF%B4%E4%B8%8D%E8%B6%B3%E4%BD%9C%E8%80%85%E8%87%AA%E9%99%88--%E6%AC%A2%E8%BF%8E%E4%BD%A0%E6%8C%87%E5%87%BA%E9%97%AE%E9%A2%98
+    about: 已知不足（只验证过两台真机、只有 arm64、无 CI 之外的自动化……）都列在那里 —— 表里没写的，才是作者最想知道的。

@@ -11,7 +11,8 @@
 
 ## 先说不足（作者自陈）· 欢迎你指出问题
 
-**这是一个人的业余项目，也是作者第一次把东西开源出来**：没有团队、没有代码评审、没有 CI（暂时）。
+**这是一个人的业余项目，也是作者第一次把东西开源出来**：没有团队、没有代码评审。
+（CI 在开源当天补上了：`.github/workflows/ci.yml` 跑契约检查 + 单测 + 出包 —— 但它只覆盖"不需要真机"的部分。）
 你翻代码时如果觉得"这段像是新手写的"——那很可能确实是，**请直接说，不必客气**。
 把不足写在最前面，是因为这个仓库的价值一半在代码、一半在**踩过的坑**；坑被指出来，才是它公开的意义。
 
@@ -25,7 +26,7 @@
 | 4 | **依赖 Termux 的私有行为** | `RUN_COMMAND` 服务 + `allow-external-apps`、往用户 `~/.bashrc` 塞钩子、`termux-clipboard-*`。**Termux 没有承诺这些接口稳定**，它一升级就可能坏 |
 | 5 | **为了让它跑起来动了 DSH 的运行时** | patch 平台闸门、`fs.link`→`rename`、自己编 flock/landlock 原生模块、安装配方钉死上游 `0.1.5-rc.2`（rc.3 的发布树是坏的）。**这些都是技术债**，上游一变就得重做 |
 | 6 | **两处安全是"权衡之后仍然有代价"的** | `usesCleartextTraffic="true"`（DSH 只跑 loopback HTTP，被迫）；模式 B 的 B2 代理**有意绕过** DSH 的 browser-trust 栅栏。代价都写在 `SECURITY.md`，**但作者不是安全专家，非常希望被专业地反驳** |
-| 7 | **工程完备性缺口** | 没有 CI、没有 gradle wrapper、没有正式签名流程、没有 issue 模板、没有 `.editorconfig`、English UI 没做；文档中文优先、篇幅偏长（原本是写给作者自己的手册） |
+| 7 | **工程完备性缺口** | 开源当天补掉了四项（CI、gradle wrapper、正式签名脚本 + `RELEASING.md`、issue 模板）；**仍缺**：`.editorconfig`、English UI、以及真机之外的界面回归（没有模拟器/Robolectric）；文档中文优先、篇幅偏长（原本是写给作者自己的手册） |
 
 ### 作者不辩解的三条
 
@@ -223,6 +224,16 @@ powershell -File tools\build-apk.ps1
 powershell -File tools\build-apk.ps1 -Task testDebugUnitTest
 ```
 
+不想装这一整套工具链也行：仓库自带 **Gradle Wrapper**（钉 8.11.1），只要有 JDK 17 + Android SDK：
+
+```powershell
+cd android
+.\gradlew.bat testDebugUnitTest     # bash 下：./gradlew
+.\gradlew.bat assembleDebug
+```
+
+（`tools\build-apk.ps1` 也会优先用 wrapper —— 与 CI 走同一条路，版本不依赖你本机装了什么 Gradle。）
+
 **工具链位置可移植**：默认 `E:\Android`，换机器设一个环境变量即可，无需改脚本：
 
 ```powershell
@@ -351,11 +362,12 @@ android-dsh/
 
 **工程完备性**
 
-- [ ] CI（`.github/workflows`：契约检查 + 单测 + `assembleDebug`；现在这些只在作者本机跑过）
-- [ ] gradle wrapper（仓库里没有 `gradlew`，别人 clone 后无法直接构建 —— 得自己装 Gradle 8.11.1）
-- [ ] release 签名配置（keystore 生成/保管说明）
-- [ ] issue 模板 / PR 模板；`.editorconfig`
-- [ ] Robolectric 或模拟器上的启动冒烟测试（当前真机是唯一的界面验证手段）
+- [x] CI（`.github/workflows/ci.yml`：契约检查 + Termux 脚本桩测试 + 单测 + 出包，每次 push/PR 都跑）—— 2026-09-25
+- [x] Gradle Wrapper（钉 8.11.1；`tools/build-apk.ps1` 与 CI 都优先用它）—— 2026-09-25
+- [x] 正式签名脚本 + `RELEASING.md`（密钥**不进仓库**，丢了就无法给已装用户升级这一点写在里面）—— 2026-09-25
+- [x] issue 模板（含「🔍 指出我写错了」）—— 2026-09-25
+- [ ] PR 模板；`.editorconfig`
+- [ ] Robolectric 或模拟器上的启动冒烟测试（当前真机是唯一的界面验证手段；CI 只覆盖不依赖真机的部分）
 
 **兼容性**
 
