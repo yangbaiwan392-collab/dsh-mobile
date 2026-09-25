@@ -7,7 +7,7 @@
   <img src="docs/images/icon-round.png" width="96" alt="应用图标：朱红小鲸鱼 + 墨印圈" />
 </p>
 
-**Android 13+（minSdk 33 / targetSdk 35；真机实测于 Moto G54 / Android 15）· Kotlin + 传统 View · 无网络依赖（除你自己指定的 DSH 实例）· 无遥测 · MIT**
+**Android 13+（minSdk 33 / targetSdk 35；真机实测于 Moto G54 与 Moto XT2611-1 / Android 16）· Kotlin + 传统 View · 无网络依赖（除你自己指定的 DSH 实例）· 无遥测 · MIT**
 
 ## 先说不足（作者自陈）· 欢迎你指出问题
 
@@ -20,7 +20,7 @@
 
 | # | 不足 | 到什么程度 |
 |---|---|---|
-| 1 | **只在这两台真机上验证过** | moto g54（Android 13 / 15）、moto XT2611-1（Android 16）。**没有模拟器、没有 Robolectric、没有仪器测试** —— 界面回归目前靠人眼 |
+| 1 | **只在这两台真机上验证过** | moto g54（XT2343-3）与 moto XT2611-1，**两台现在都是 Android 16**（g54 早期是在 Android 13/15 上验的，`CHANGELOG.md` 里那些版本号是当时的实况）。**没有模拟器、没有 Robolectric、没有仪器测试** —— 界面回归目前靠人眼 |
 | 2 | **实际上只有 arm64 能跑** | APK 本身不含原生库（不限架构），卡在 Termux 侧：附带的是 `arm64-v8a` 版 Termux，且 `termux/fix-android-runtime.sh` 里写死了 `node-addon-system-android-arm64`。x86_64（模拟器 / Intel 平板）今天跑不起来 |
 | 3 | **不符合现代 Android 写法** | 传统 View + XML（不是 Compose）；没有 ViewModel / Flow 分层；`MainActivity.startLocalDsh()` 里还直接 `Thread{}.start()` |
 | 4 | **依赖 Termux 的私有行为** | `RUN_COMMAND` 服务 + `allow-external-apps`、往用户 `~/.bashrc` 塞钩子、`termux-clipboard-*`。**Termux 没有承诺这些接口稳定**，它一升级就可能坏 |
@@ -358,7 +358,7 @@ android-dsh/
 | 项 | 值 |
 |---|---|
 | Android | **13（API 33）及以上**；`minSdk 33` 是刻意选择（少一半兼容分支） |
-| 实测机型 | **moto g54（XT2343-3）· Android 15（API 35）· arm64-v8a** |
+| 实测机型 | **moto g54（XT2343-3）· arm64-v8a**、**moto XT2611-1 · arm64-v8a** —— 两台现在都是 **Android 16**（早期在 Android 13 / 15 上的实测记录见 `CHANGELOG.md` 与 `docs/03-build.md`） |
 | DSH | `@deepseek-ai/dsh 0.1.5-rc.1/rc.2` 上实测（协议细节读自源码） |
 | 构建环境 | Windows + JDK 17 + Gradle 8.11.1 + AGP 8.7.3 + compileSdk 35 |
 
