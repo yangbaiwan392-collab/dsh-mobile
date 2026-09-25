@@ -72,6 +72,15 @@
   顺带新增**契约 8：仓库里的 `.ps1` 必须带 UTF-8 BOM**（PowerShell 5.1 读无 BOM 脚本用系统 ANSI 代码页，
   本机 ACP=utf-8 一直没露馅，换台机器中文就成乱码 —— 契约 8 上线当次就抓到了被编辑器去掉 BOM 的那个文件）；
   内嵌副本与真身的比对也**先归一 CRLF 再比**（契约要的是内容一致，不是字节一致）。
+- ★ **CI 出不了包：干净克隆里没有调试签名密钥**（第一次 CI 跑到出包那步才暴露）：
+  `android/signing/debug.keystore` 是密钥、**故意不进仓库**，而 `debug` 构建类型指定了它，
+  于是 `validateSigningDebug` 红在 `Keystore file '…/debug.keystore' not found`。
+  → CI 增加"生成调试签名密钥"步骤（`tools/make-debug-keystore.ps1`，幂等）；
+  `CONTRIBUTING.md` 写明"直接跑 `gradlew`（或 IDE）前先跑一次这个脚本"；
+  `tools/build-apk.ps1` 里补生成密钥的那句改成**同进程**调用（同契约 7 的理由：别再引入另一个 PowerShell 版本）。
+  顺带两处让日志说人话：CI 给 Gradle **客户端** JVM 设 `-Dsun.stdout.encoding=UTF-8`
+  （`org.gradle.jvmargs` 只管 daemon，runner 的控制台代码页把中文提示写成了 `???`）；
+  `make-debug-keystore.ps1` 打印 keytool 信息时不再只匹配中文（英文 JDK 是 `Valid from`，只匹配中文等于什么都不打）。
 - `tools/test-termux-scripts.sh`：curl 预检那条不再写死 `apt full-upgrade`（实现是 `apt -y full-upgrade`，
   测试与实现不同步导致长期红），改为只断言"存在一条 apt 的 full-upgrade 指令"；现 **4 个用例 / 22 项全过**。
 - ★ **自检报告会把入口地址的 token 原样打出来**：`[10] 日志里的入口地址` 直接 `grep` 了 `.dsh-web.log`，

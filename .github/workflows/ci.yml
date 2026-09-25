@@ -2,8 +2,8 @@
 #
 # 为什么值得有：作者只有两台真机、没有模拟器，界面回归靠人眼（见 README「先说不足」）。
 # 那就至少把**不需要真机**的部分自动化：跨工件契约、Termux 脚本桩测试、单元测试、能否出包。
-# 用 windows-latest：本项目的工具链是 PowerShell 优先（契约检查里显式调 `powershell`），
-# 而 runner 上 bash 也有（Git Bash）→ 两类脚本都能跑。
+# 用 windows-latest：本项目的工具链是 PowerShell 优先（契约检查等脚本都是 .ps1，
+# runner 上 pwsh 5.1/7 与 bash(Git Bash) 都有）→ 两类脚本都能跑。
 name: CI
 
 on:
@@ -19,6 +19,11 @@ jobs:
   verify:
     name: 契约 · 脚本 · 单测 · 出包
     runs-on: windows-latest
+    # 让 Gradle **客户端** JVM 也用 UTF-8 输出：runner 的控制台代码页不是 UTF-8，
+    # 而 build.gradle.kts 里的中文提示（release 退回 debug 签名那条）会被写成 `???`，
+    # 日志等于没写。（org.gradle.jvmargs 只管 daemon，管不到客户端。）
+    env:
+      GRADLE_OPTS: '-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8'
     steps:
       - uses: actions/checkout@v4
 
@@ -48,6 +53,13 @@ jobs:
         shell: pwsh
         run: ./android/gradlew.bat -p android --no-daemon testDebugUnitTest
 
+      # 调试签名密钥被 gitignore（不该进仓库），所以**克隆后必须先生成一次**：
+      # 少了这一步 AGP 会红在 `validateSigningDebug: Keystore file … debug.keystore not found`
+      # （本仓库第一次跑 CI 就是这么红的 —— 本地因为密钥早就在，看不出来）。
+      - name: 生成调试签名密钥（克隆后仓库里没有，是 gitignore 的）
+        shell: pwsh
+        run: ./tools/make-debug-keystore.ps1
+
       - name: 出 debug APK（顺带验证能构建）
         shell: pwsh
         run: ./android/gradlew.bat -p android --no-daemon assembleDebug
@@ -58,3 +70,4 @@ jobs:
           name: dsh-mobile-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+

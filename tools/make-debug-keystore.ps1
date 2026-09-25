@@ -37,7 +37,10 @@ if ($LASTEXITCODE -ne 0) { throw "keytool 生成失败（exit $LASTEXITCODE）" 
 
 Write-Host "`n已生成：$Keystore" -ForegroundColor Green
 & $Keytool -list -v -keystore $Keystore -storepass android -alias androiddebugkey 2>&1 |
-    Select-String -Pattern "生效时间|失效时间|SHA256" | ForEach-Object { Write-Host ("  " + $_.Line.Trim()) }
+    # keytool 的字段名随 JDK 语言变：中文 JDK 是"生效时间/失效时间"，英文 JDK 是"Valid from/until"
+    # （CI runner 就是英文的 —— 只匹配中文会一条都打不出来，看着像生成失败）。
+    Select-String -Pattern "生效时间|失效时间|Valid from|Valid until|SHA256" |
+    ForEach-Object { Write-Host ("  " + $_.Line.Trim()) }
 
 # keytool 把提示写到 stderr，PowerShell 会把它当错误记录 —— 这里明确表示成功
 exit 0

@@ -45,7 +45,9 @@ foreach ($p in @($Jdk, $Sdk, $GradleCmd, $ProjectDir)) {
 $keystore = Join-Path $ProjectDir 'signing\debug.keystore'
 if (-not (Test-Path $keystore)) {
     Write-Host "==> 缺少调试密钥，先生成" -ForegroundColor Yellow
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'make-debug-keystore.ps1')
+    # **同进程**调用（不要 `& powershell -File …`）：别再引入"另一个 PowerShell 版本"这种变量 ——
+    # 契约 7 就是被它坑过一次（CI 上子进程返回非零、原因还被吞掉）。
+    & (Join-Path $PSScriptRoot 'make-debug-keystore.ps1')
     if (-not (Test-Path $keystore)) { throw "密钥生成失败：$keystore" }
 }
 

@@ -45,6 +45,13 @@ JAVA_HOME=/path/to/jdk17 ANDROID_HOME=/path/to/Sdk ./gradlew assembleDebug
 
 Windows / IDE 同理用 `android\gradlew.bat`；`tools/build-apk.ps1` 也会**优先用 wrapper**（与 CI 同一条路）。
 
+> ⚠ **直接跑 `gradlew` 之前，先跑一次 `powershell -File tools\make-debug-keystore.ps1`**：
+> 调试签名密钥（`android/signing/debug.keystore`）**不在仓库里**（它是密钥，被 gitignore），
+> 而 `debug` 构建类型指定了它 —— 少了这一步，签名任务会红在
+> `Keystore file '…/signing/debug.keystore' not found`。`build-apk.ps1` 会自动补这一步，
+> 直接调 Gradle 的路径（CI、IDE、其它平台）则要自己跑一次（生成后一直复用，不必每次跑）。
+> 单元测试不需要密钥，所以 `testDebugUnitTest` 在干净克隆里能直接跑通。
+
 > 国内首次拉 distribution（约 130 MB，来自 `services.gradle.org`）可能很慢：
 > 可临时把 `android/gradle/wrapper/gradle-wrapper.properties` 的 `distributionUrl` 换成镜像
 > （如 `https://mirrors.cloud.tencent.com/gradle/gradle-8.11.1-bin.zip`）。这类镜像会变，先用浏览器确认能下。
