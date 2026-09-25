@@ -41,3 +41,6 @@ android/.kotlin/
 
 # 临时提交信息文件
 _commit-msg.txt
+
+# 走错门的文件：壁纸工具的正规家在 E:\handraw-style\tools\
+tools/make-wallpaper.py
