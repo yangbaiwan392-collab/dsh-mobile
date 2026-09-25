@@ -132,3 +132,34 @@ DeviceGuard: [AutoRunServices] onSelfStartRestricted → com.termux, fromPkg=app
 **离开自己的网段也要用？** 见 [`05-anywhere-tailscale.md`](05-anywhere-tailscale.md)：
 用 Tailscale 组网 + `tailscale serve` 挂真证书 HTTPS 入口，模型通路走组网 IP 直连 `8083`。
 该文档同时给出**重启电脑后的照做清单**（Ollama 与 8083 代理都不自启）与**凭据过期后的重发命令**。
+
+## 六、云端模型的 key 要在**手机这一份**里再配一次
+
+手机上的 DSH 与 PC 上的 DSH 是**两套独立的配置与凭据**（各有自己的 `~/.dsh`）。
+新手机的 `settings.yaml` 里 `agent-default-model` 往往就是**云端**的
+（实测：`provider: deepseek-official` / `model: deepseek-flash`），而它的凭据文件里**一把 key 都没有** ——
+表现就是用户会看到的那句："Ollama 的模型能连、云端模型一点就连不上"。
+
+**key 存在哪**：`~/.dsh/.credentials.yaml` 的 `refs:` 段，**明文**，所以可以直接从 PC 搬过来：
+
+```yaml
+refs:
+  DEEPSEEK_API_KEY: sk-...
+```
+
+搬法（在 PC 上做，key 不进任何命令行参数、也就不进日志）：把 PC 的 `.credentials.yaml` 与手机的合并，
+经 `adb push /data/local/tmp/…` → `run-as com.termux cp` 落到手机同名文件（先备份手机那份、`chmod 600`）。
+
+**改完要不要重启**：`dsh-credentials-local` 用 chokidar 监听凭据文件（`watch` 默认开）→ 理论上热生效；
+想稳就在 Termux 里 `pkill -f bin.js` 再 `bash ~/dsh-android/start-dsh.sh`（脚本会重新拿唤醒锁）。
+
+**要不要翻墙**：这几家国内云 API 都不需要 —— `api.deepseek.com`、`open.bigmodel.cn`、
+`dashscope.aliyuncs.com` 手机实测直连可达（DeepSeek 不带 key 返回 401、带 key 200）。
+所以"云端"与"Tailscale 组网"**不冲突**，可以同时用；会冲突的只有 OpenAI/Claude/Gemini 这类境外 API。
+
+**验一下**（在手机上读 key 直接调一次，只回状态码、不回显 key）：
+
+```bash
+K="$(sed -n 's/^  DEEPSEEK_API_KEY: //p' ~/.dsh/.credentials.yaml)"
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $K" https://api.deepseek.com/user/balance
+```
