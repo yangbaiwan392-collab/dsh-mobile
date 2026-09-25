@@ -9,6 +9,46 @@
 
 **Android 13+（minSdk 33 / targetSdk 35；真机实测于 Moto G54 / Android 15）· Kotlin + 传统 View · 无网络依赖（除你自己指定的 DSH 实例）· 无遥测 · MIT**
 
+## 先说不足（作者自陈）· 欢迎你指出问题
+
+**这是一个人的业余项目，也是作者第一次把东西开源出来**：没有团队、没有代码评审、没有 CI（暂时）。
+你翻代码时如果觉得"这段像是新手写的"——那很可能确实是，**请直接说，不必客气**。
+把不足写在最前面，是因为这个仓库的价值一半在代码、一半在**踩过的坑**；坑被指出来，才是它公开的意义。
+
+### 已知不足（按"最可能被专业人士挑"排序，都是事实）
+
+| # | 不足 | 到什么程度 |
+|---|---|---|
+| 1 | **只在这两台真机上验证过** | moto g54（Android 13 / 15）、moto XT2611-1（Android 16）。**没有模拟器、没有 Robolectric、没有仪器测试** —— 界面回归目前靠人眼 |
+| 2 | **实际上只有 arm64 能跑** | APK 本身不含原生库（不限架构），卡在 Termux 侧：附带的是 `arm64-v8a` 版 Termux，且 `termux/fix-android-runtime.sh` 里写死了 `node-addon-system-android-arm64`。x86_64（模拟器 / Intel 平板）今天跑不起来 |
+| 3 | **不符合现代 Android 写法** | 传统 View + XML（不是 Compose）；没有 ViewModel / Flow 分层；`MainActivity.startLocalDsh()` 里还直接 `Thread{}.start()` |
+| 4 | **依赖 Termux 的私有行为** | `RUN_COMMAND` 服务 + `allow-external-apps`、往用户 `~/.bashrc` 塞钩子、`termux-clipboard-*`。**Termux 没有承诺这些接口稳定**，它一升级就可能坏 |
+| 5 | **为了让它跑起来动了 DSH 的运行时** | patch 平台闸门、`fs.link`→`rename`、自己编 flock/landlock 原生模块、安装配方钉死上游 `0.1.5-rc.2`（rc.3 的发布树是坏的）。**这些都是技术债**，上游一变就得重做 |
+| 6 | **两处安全是"权衡之后仍然有代价"的** | `usesCleartextTraffic="true"`（DSH 只跑 loopback HTTP，被迫）；模式 B 的 B2 代理**有意绕过** DSH 的 browser-trust 栅栏。代价都写在 `SECURITY.md`，**但作者不是安全专家，非常希望被专业地反驳** |
+| 7 | **工程完备性缺口** | 没有 CI、没有 gradle wrapper、没有正式签名流程、没有 issue 模板、没有 `.editorconfig`、English UI 没做；文档中文优先、篇幅偏长（原本是写给作者自己的手册） |
+
+### 作者不辩解的三条
+
+1. **写错了就是写错了。** 被指出后我只做两件事：改掉它，或者把"为什么不得不这样"写进文档。
+2. **不会为了好看而隐藏已知问题。** 仓库里每处"不优雅"的地方，基本都能在 `CHANGELOG.md` 或 `docs/` 里找到当时为什么这么做。
+3. **指出问题的人会被记名致谢**（写进 `CHANGELOG.md`，除非你说不要）—— 你的十分钟，能让下一个踩坑的人少走一遍。
+
+### 最想听的五类意见（按渴望程度排序）
+
+1. **安全**：凭据流转、明文 HTTP、权限模型、WebView 配置（第三方 cookie、文件上传/下载、JS 桥）。
+2. **Android 平台正确性**：前台服务、后台启动限制、运行时权限、生命周期、分区存储、电量策略。
+3. **Termux 集成的正确姿势**：有没有比 `RUN_COMMAND` + `.bashrc` 钩子更稳、更"官方"的做法。
+4. **Kotlin 结构与命名**：`core/`（纯逻辑）+ `platform/`（适配）这条分法是否成立。
+5. **构建与测试**：契约检查 / 桩测试的思路对不对，以及怎么用最低成本加上真机之外的回归。
+
+**提意见不用写长文**：一句话就够，例如「`DshWebView.kt` 的 cookie 处理不对，应该用 CookieManager 的 X」。
+
+> **English (short).** This is a **hobby project by one person**, open-sourced for the first time — no team, no code
+> review, no CI yet. If something looks amateurish, it probably is: please say so plainly. Known gaps are in the table
+> above (2 devices tested, arm64 only, non-idiomatic Android, reliance on private Termux behaviours, runtime patches to
+> DSH, two security trade-offs, no CI/wrapper/release signing). **Security reviews and platform-correctness critiques are
+> the most welcome**, and reviewers are credited in `CHANGELOG.md`.
+
 ## 真机截图
 
 | 入口列表 | WebView 里的 DSH 界面 | 环境自检 |
@@ -267,11 +307,26 @@ android-dsh/
 
 ## 已知限制 / 路线图
 
+> 这些是**作者自己承认的缺口**，不接受 PR 之前请先看这一节（与上面「先说不足」是同一份清单的两个视角）。
+
+**工程完备性**
+
+- [ ] CI（`.github/workflows`：契约检查 + 单测 + `assembleDebug`；现在这些只在作者本机跑过）
+- [ ] gradle wrapper（仓库里没有 `gradlew`，别人 clone 后无法直接构建 —— 得自己装 Gradle 8.11.1）
 - [ ] release 签名配置（keystore 生成/保管说明）
+- [ ] issue 模板 / PR 模板；`.editorconfig`
 - [ ] Robolectric 或模拟器上的启动冒烟测试（当前真机是唯一的界面验证手段）
+
+**兼容性**
+
+- [ ] x86_64 支持（`termux/fix-android-runtime.sh` 写死了 `android-arm64` 的原生模块；需要按 `uname -m` 分支）
+- [ ] 评估更低的 `minSdk`（现为 33；下探到 26–31 要处理 `POST_NOTIFICATIONS`、前台服务/通知路径、分区存储、WebView 行为差异）
+- [ ] 英文界面（当前 UI 文案为中文）
+
+**代码结构**
+
 - [ ] 组合文件拆分（`compositions/*.html` 式的 UI 重构不在本仓库；这里指的是把 Activity 拆成更小的 composable 单元）
 - [ ] 模式 A 的"一键安装"：在 app 内引导 Termux 安装与脚本落地
-- [ ] 英文界面（当前 UI 文案为中文）
 
 ## 常见问题（都是这一路真实踩过的）
 
