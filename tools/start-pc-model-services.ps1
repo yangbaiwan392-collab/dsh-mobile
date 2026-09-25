@@ -14,6 +14,13 @@
 # 重复执行是安全的（已在跑就跳过）。
 #
 # 用法：双击本文件；或 powershell -ExecutionPolicy Bypass -File <本文件>
+#      加 -ProxyOnly 则只拉起 8083 代理、完全不碰 Ollama —— **开机自启走的就是这一档**
+#      （用户 2026-09-25 的决定：代理只占几十 MB 内存、不碰显存，值得常驻；Ollama 保持手动，
+#        因为它一被请求就把 13 GB 往显存里塞，会跟出图抢卡。）
+
+param(
+  [switch]$ProxyOnly
+)
 
 $ErrorActionPreference = 'Continue'
 
@@ -36,9 +43,12 @@ function Wait-Port([int]$port, [int]$seconds) {
 }
 
 Write-Host '== 拉起 PC 侧模型通路' -ForegroundColor Cyan
+if ($ProxyOnly) { Write-Host '  （-ProxyOnly：只处理代理，不碰 Ollama）' }
 
 # --- 1) Ollama ---
-if (Test-Port 11434) {
+if ($ProxyOnly) {
+  Write-Host '  [1/2] 跳过 Ollama（-ProxyOnly）。'
+} elseif (Test-Port 11434) {
   Write-Host '  [1/2] Ollama 11434 已在监听，跳过。'
 } else {
   if (-not (Test-Path $OllamaExe)) {
@@ -71,6 +81,11 @@ if (Test-Port 8083) {
 # --- 复核：真的能从"非回环地址"取到模型清单吗 ---
 Write-Host ''
 Write-Host '== 复核（实测，不是猜）' -ForegroundColor Cyan
+if (-not (Test-Port 11434)) {
+  Write-Host '  Ollama 没在跑（-ProxyOnly 的正常状态，或你还没开它）→ 代理在，但手机现在取不到模型。' -ForegroundColor Yellow
+  Write-Host '  想让它完整可用：不带 -ProxyOnly 再跑一次本脚本。'
+  return
+}
 $tailnetIp = (& 'C:\Program Files\Tailscale\tailscale.exe' ip -4 2>$null | Select-Object -First 1)
 foreach ($addr in @('127.0.0.1', $tailnetIp) | Where-Object { $_ }) {
   try {

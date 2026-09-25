@@ -114,17 +114,18 @@ HTTP 服务挂到同一主机名上；cookie 与端口无关，所以 443 上的
 |---|---|---|
 | Tailscale 服务 + serve 配置 | ✅ 会 | tailscaled 自启，serve 配置持久 |
 | dsh web（带 `--trusted-host`） | ✅ 会 | 用户平时那个启动方式即可 |
-| **Ollama (11434)** | ❌ **不会** | 启动文件夹里的 `Ollama.lnk` **处于禁用状态**（`AGENTS.md` §5 说它有自启，与实况不符） |
-| **回环代理 (8083)** | ❌ **不会** | 本来就是手动起的 |
+| **回环代理 (8083)** | ✅ 会 | **2026-09-25 用户拍板加了自启**：启动文件夹里 `DSH模型代理.lnk` → `tools/autostart-proxy.vbs` → `start-pc-model-services.ps1 -ProxyOnly`（**只起代理，完全不碰 Ollama**）。要停就在任务管理器→启动应用里禁用它，或结束监听 8083 的 node 进程 |
+| **Ollama (11434)** | ❌ **不会** | 启动文件夹里的 `Ollama.lnk` **处于禁用状态**（`AGENTS.md` §5 说它有自启，与实况不符）。用户明确要求**保持手动**——它一被请求就把十几 GB 塞进显存，会跟出图抢卡 |
 | 手机上的 Tailscale | ✅ 会 | 只要没被翻墙 VPN 挤掉 |
 
-所以重启后**跑一次这个就好**（幂等，已在跑就跳过）：
+所以重启后**只需要处理 Ollama**（代理已经自己在了）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File <仓库目录>\tools\start-pc-model-services.ps1
 ```
 
 它最后会**在组网 IP 上实测并打印模型个数**——看到 `<PC 的组网 IP> → 5 个模型` 才算真好了。
+（只想确认代理还活着：加 `-ProxyOnly` 跑一次，它会跳过 Ollama。）
 
 ## 八、已知限制（用户须知）
 
