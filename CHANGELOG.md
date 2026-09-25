@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+（下一版写在这里。）
+
+## [0.1.8] — 2026-09-25
+
+> 这一版的两大主题：**修掉"app 打不开"的真因**，以及**补齐工程件并首次开源**。
+
 ### 已验证（真机里程碑）
 - **Android/Termux 上 DSH 的原生依赖可以编出来**：`node-pty` 无 `android-arm64` 预编译，
   在 moto g54（Android 13 / aarch64）上用 `pkg install -y python clang make` +
