@@ -1,8 +1,8 @@
 # 新手机开箱：一条命令把「3 个 APK + 一键装 DSH + 用 PC 的 Ollama」全办完。
 #
 # 用法（手机已开无线调试并与 PC 同网）：
-#   powershell -File tools\new-phone-setup.ps1 -Ip 192.168.0.104 -Port 46393
-#   powershell -File tools\new-phone-setup.ps1 -PcIp 192.168.0.105 -OllamaProxyPort 8083   # 只配「用 PC 的 Ollama」
+#   powershell -File tools\new-phone-setup.ps1 -Ip 192.168.1.100 -Port 46393
+#   powershell -File tools\new-phone-setup.ps1 -PcIp 192.168.1.100 -OllamaProxyPort 8083   # 只配「用 PC 的 Ollama」
 #
 # 前置（PC 侧，一条命令，见 docs/02 §四）：
 #   node tools\loopback-proxy.mjs --listen 0.0.0.0:8083 --target 127.0.0.1:11434
@@ -15,7 +15,7 @@
 param(
     [string]$Ip,
     [string]$Port,
-    [string]$PcIp = '192.168.0.105',
+    [string]$PcIp = '192.168.1.100',
     [int]$OllamaProxyPort = 8083,
     [switch]$SkipApk,
     [switch]$SkipOllama

@@ -1,13 +1,16 @@
 # 05 · 离开局域网也能用（Tailscale 组网）
 
+> **本文里的 `<...>` 都是占位符**（`<你的 tailnet>`、`<主机名>`、`<PC 的组网 IP>` …），请替换成你自己的值。
+> 文中所有数字都是实测值，括号里标了测法；命令可直接照抄，只需先替换占位符。
+>
 > 建置日期 **2026-09-25**，全部结论均为当天实测，不是推测。
-> 适用机型：moto XT2611-1 / Android 16（tailnet 里叫 `<手机节点名>?`）。
+> 适用机型：moto XT2611-1 / Android 16（tailnet 里叫 `<手机节点名>`）。
 > PC：Windows 11，tailnet 节点 `<主机名>`。
 
 ## 一、要解决的是什么
 
 手机上的 DSH 本身跑在 Termux 里，**它不需要网**；出网段就废掉的是它的**脑子**——
-模型指向家里 PC 的 `192.168.0.102:8083`。所以问题不是"DSH 不能离线"，而是"模型通路只在局域网里"。
+模型指向家里 PC 的 `<PC 的局域网 IP>:8083`。所以问题不是"DSH 不能离线"，而是"模型通路只在局域网里"。
 
 顺带把第二件事也做了：在外面用手机浏览器打开 **PC 上这个完整 GUI**（含全部技能、工作流、工作区）。
 
@@ -49,7 +52,7 @@
 ## 四、手机侧做了什么
 
 1. Play 商店装 **Tailscale**，登录同一个 Google 账号，授权 VPN。
-2. `~/.dsh/settings.yaml` 的 `ollama-pc.baseURL`：`http://192.168.0.102:8083/v1` → **`http://<PC 的组网 IP>:8083/v1`**
+2. `~/.dsh/settings.yaml` 的 `ollama-pc.baseURL`：`http://<PC 的局域网 IP>:8083/v1` → **`http://<PC 的组网 IP>:8083/v1`**
    （备份 `~/.dsh/settings.yaml.bak-20260925`；改法见第七节的 adb 命令）。
 3. 浏览器拿到 30 天登录 cookie，书签存 `https://<主机名>.<你的 tailnet>.ts.net/`。
 
@@ -57,7 +60,7 @@
 
 | 检查 | 结果 |
 |---|---|
-| `tailscale ping` PC→手机 | `via 192.168.0.108:50982 in 35ms`（**直连**，非中继） |
+| `tailscale ping` PC→手机 | `via <手机的局域网 IP>:50982 in 35ms`（**直连**，非中继） |
 | 手机 → 模型接口 | `curl http://<PC 的组网 IP>:8083/v1/models` → **HTTP 200 / 18.7 ms**，5 个模型 |
 | GUI 无 cookie | `401` |
 | GUI 带正确 cookie | `200`（28546 字节首页） |
@@ -86,7 +89,7 @@ node <仓库目录>\tools\dsh-remote-login.mjs --authority <主机名>.<你的 t
 tailscale serve --bg --https=8443 http://127.0.0.1:3088
 node <仓库目录>\tools\dsh-remote-login.mjs --authority <主机名>.<你的 tailnet>.ts.net `
      --port 3088 --public-port 8443 --url-file <仓库目录>\tools\.login-url --ttl-minutes 20
-adb connect 192.168.0.108:<无线调试端口>          # 端口用 tools\scan-adb-ports.mjs 扫
+adb connect <手机的局域网 IP>:<无线调试端口>          # 端口用 tools\scan-adb-ports.mjs 扫
 adb shell am start -a android.intent.action.VIEW -d "$(Get-Content <仓库目录>\tools\.login-url -Raw)"
 tailscale serve --https=8443 off                  # 发完立刻撤掉入口
 ```
@@ -135,7 +138,7 @@ powershell -ExecutionPolicy Bypass -File <仓库目录>\tools\start-pc-model-ser
 3. 手机 DSH 要连模型，前提是**手机的 Tailscale 处于连接状态**。
 4. 出门在外若打洞失败会退化到中继（香港/东京，约 300 ms），能对话、不适合密集交互。
 5. 手机上的 cookie **30 天过期**（本次到 2026-10-25），到期按第六节重发一次。
-6. 设备在组网里叫 `<手机节点名>?`（取的是 Android 设备名），可在后台 Machine settings 改名。
+6. 设备在组网里叫 `<手机节点名>`（取的是 Android 设备名），可在后台 Machine settings 改名。
 
 ## 九、手机上 Google OAuth 打不开时怎么办（本次实际用到的招）
 

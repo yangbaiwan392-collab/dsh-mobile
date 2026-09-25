@@ -54,6 +54,17 @@ class TermuxCommandTest {
     }
 
     @Test
+    fun `自检报告里的入口地址必须给 token 打码`() {
+        val cmd = TermuxCommand.diagnostics("app.dsh.mobile", "app.dsh.mobile.ui.MainActivity")
+        // 为什么单测它：这份报告会被截图、被贴进 issue（作者自己就这么干过），
+        // 而 ?token= 是能换到 30 天会话 cookie 的凭据 —— 不能出现在给别人看的东西里。
+        assertTrue("应带 sed 打码", cmd.contains("sed -E 's/(token=)[^ )]+/\\1<已隐藏>/g'"))
+        assertTrue("文案要说明已隐藏", cmd.contains("token 已隐藏"))
+        // 反向断言：源码里若把 \\1 写成 \\\\1，落进 bash 就是 \\1 → sed 会原样打印反斜杠
+        assertTrue("不应出现双反斜杠", !cmd.contains("\\\\1<已隐藏>"))
+    }
+
+    @Test
     fun `绝不生成带引号的波浪号（bash 不在引号里展开 ~）`() {
         val cmd = TermuxCommand.installAndStart(scripts)
         // 真机踩过：`cat > "~/dsh-android/x.sh"` 会去找名为 ~ 的目录 → 目录建好了但文件是空的

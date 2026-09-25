@@ -82,7 +82,13 @@ object TermuxCommand {
         appendLine("add '—— 服务与服务日志 ——'")
         appendLine("add \"[8] 进程：\$(pgrep -f 'dsh web' >/dev/null 2>&1 && echo 在跑 || echo 没跑)\"")
         appendLine("add \"[9] 本地 $LOCAL_PORT 探活：\$(curl -s -o /dev/null -m 3 -w '%{http_code}' http://127.0.0.1:$LOCAL_PORT/ 2>/dev/null || echo 连不上)（200=已认证 / 401=在跑但未认证，都算正常；连不上=没在跑）\"")
-        appendLine("add \"[10] 日志里的入口地址：\$(grep -m1 'dsh web: ' ~/.dsh-web.log 2>/dev/null || echo '暂无（说明还没成功启动过）')\"")
+        // 入口地址**只显示到 host:port，token 一律打码**。
+        // 理由：这份报告是会被截图、被贴到 issue 里的（作者自己就这么干过），
+        // 而 `?token=` 是能换到 30 天会话 cookie 的凭据 —— 不需要出现在给别人看的东西里。
+        // 报告里保留它只为证明"成功启动过一次"，所以留 `token=<已隐藏>` 就够。
+        // `\\1` 在 Kotlin 里写两个反斜杠，落到 bash 里是 `\1`（sed 的反向引用）；
+        // 写成四个反斜杠会让 sed 收到 `\\1`、原样打印 "\1"，等于没打码。
+        appendLine("add \"[10] 日志里的入口地址（token 已隐藏）：\$(grep -m1 'dsh web: ' ~/.dsh-web.log 2>/dev/null | sed -E 's/(token=)[^ )]+/\\1<已隐藏>/g' || echo '暂无（说明还没成功启动过）')\"")
         appendLine("add ''")
         appendLine("add '—— 沙箱 / 能否执行命令 ——'")
         appendLine("add \"[11] 内核：\$(uname -r)\"")

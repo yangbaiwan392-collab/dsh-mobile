@@ -25,7 +25,8 @@ param(
 $ErrorActionPreference = 'Continue'
 
 $OllamaExe  = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama app.exe'
-$ProxyScript = '<仓库目录>\tools\loopback-proxy.mjs'
+# 按"本脚本所在目录"定位兄弟文件：写死绝对路径的话，别人 clone 下来直接就是错的
+$ProxyScript = Join-Path $PSScriptRoot 'loopback-proxy.mjs'
 $ProxyListen = '0.0.0.0:8083'
 $ProxyTarget = '127.0.0.1:11434'
 
@@ -69,8 +70,8 @@ if (Test-Port 8083) {
     Write-Warning "  找不到代理脚本：$ProxyScript"
   } else {
     Write-Host "  [2/2] 启动代理 $ProxyListen → $ProxyTarget …"
-    # 用 cmd 起，避免 powershell 退出时把子进程带走；日志写到 tools 下的 log 文件便于事后追。
-    $log = '<仓库目录>\tools\loopback-proxy.log'
+    # 用 cmd 起，避免 powershell 退出时把子进程带走；日志写到本脚本同目录，便于事后追。
+    $log = Join-Path $PSScriptRoot 'loopback-proxy.log'
     Start-Process -FilePath 'cmd.exe' -WindowStyle Hidden `
       -ArgumentList @('/c', "node `"$ProxyScript`" --listen $ProxyListen --target $ProxyTarget >> `"$log`" 2>&1") | Out-Null
     if (Wait-Port 8083 20) { Write-Host '        8083 已就绪。' -ForegroundColor Green }

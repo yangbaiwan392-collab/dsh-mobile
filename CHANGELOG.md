@@ -51,6 +51,13 @@
   清后台不再能杀掉它。
 - `tools/test-termux-scripts.sh`：curl 预检那条不再写死 `apt full-upgrade`（实现是 `apt -y full-upgrade`，
   测试与实现不同步导致长期红），改为只断言"存在一条 apt 的 full-upgrade 指令"；现 **4 个用例 / 22 项全过**。
+- ★ **自检报告会把入口地址的 token 原样打出来**：`[10] 日志里的入口地址` 直接 `grep` 了 `.dsh-web.log`，
+  于是 `?token=…` 完整出现在报告里 —— 而这份报告天然是要被截图、被贴进 issue 的（作者本人就这么干过，
+  把 token 截进了公开截图）。→ 现在只保留 `host:port`，token 一律替换成 `<已隐藏>`；
+  替换用 `sed -E 's/(token=)[^ )]+/\1<已隐藏>/g'`，**`g` 是必须的**（日志行可能带 `(LAN: …)` 尾巴，里面还有同一个 token）；
+  新增单测 `TermuxCommandTest.自检报告里的入口地址必须给 token 打码` 锁住这个行为
+  （含"Kotlin 里写成 `\\1` 而不是 `\\\\1`"的反向断言 —— 后者会让 sed 打印字面量 `\1`，等于没打码）。
+  同时把 README 里那张自检截图重做了打码。
 - ★ **`phone-bootstrap.sh` 内嵌的 start-dsh.sh 与真身漂移**：两份各自手改，内嵌那份少了 `DSH_OLLAMA_KEY`、
   也没有唤醒锁，而文件头却写着"拿唤醒锁并启动"。现在内嵌段 = 真身的**逐字副本**，只能由
   `tools/sync-bootstrap-embed.ps1` 生成，并由契约 7 核对（自包含的需求仍在，所以不能删掉副本，但可以不让它漂）。

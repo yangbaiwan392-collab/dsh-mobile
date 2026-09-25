@@ -5,10 +5,10 @@
 #      → 显式设 $OutputEncoding 为 UTF-8 无 BOM；
 #   3) /sdcard 那条路受 Android 存储权限限制 → 直接写进 Termux 家目录。
 #
-# 用法：powershell -File tools\push-to-phone.ps1 [-Ip 192.168.0.104] [-Port 46393] [-File <本地文件>...]
+# 用法：powershell -File tools\push-to-phone.ps1 [-Ip 192.168.1.100] [-Port 46393] [-File <本地文件>...]
 [CmdletBinding()]
 param(
-    [string]$Ip = '192.168.0.104',
+    [string]$Ip = '192.168.1.100',
     [string]$Port = '46393',
     [string[]]$File = @(),
     [string]$RemoteDir = '/data/data/com.termux/files/home/dsh-android'

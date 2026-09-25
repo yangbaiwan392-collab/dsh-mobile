@@ -6,7 +6,7 @@
 param(
     [int]$DshPort = 3099,
     [int]$ProxyPort = 8081,
-    [string]$FakeLanIp = '192.168.0.105'
+    [string]$FakeLanIp = '192.168.1.104'
 )
 
 $ErrorActionPreference = 'Continue'   # 子进程会把版本/错误写到 stderr，别让它中断脚本

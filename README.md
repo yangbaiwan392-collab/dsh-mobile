@@ -59,6 +59,9 @@
 （Termux 脚本回传的，含 token）；中间是同一条链路的终点 —— 真正的 DSH Web 界面在 app 的 WebView 里渲染；
 右边是在 Termux 处于后台的情况下拿到的自检报告（走剪贴板通道，见下文）。
 
+> 右边那张截图里**入口地址的 token 已打码**：这份报告经常被拿去贴 issue，而 `?token=` 是能换到
+> 30 天会话 cookie 的凭据。app 现在也会在报告里自动把它替换成 `<已隐藏>`（详见 `CHANGELOG`）。
+
 ---
 
 ## English overview
@@ -89,7 +92,7 @@ Build with `tools/build-apk.ps1`; see `docs/` for the full manuals.
 1. **DSH 永远只监听 `127.0.0.1`。**
    `dsh web --host 0.0.0.0` 会被服务端直接拒绝，原话是：
    *`--host 0.0.0.0 is intentionally not supported yet for safety: it would expose remote code execution to the network`*；
-   `--host 192.168.0.105` 则配置校验失败（`$.host expected "127.0.0.1" | "0.0.0.0"`）。
+   `--host 192.168.1.105` 则配置校验失败（`$.host expected "127.0.0.1" | "0.0.0.0"`）。
    → **手机不可能直连 PC 的端口**，模式 B 必须先有转发者。
 2. **认证是"根 URL 带 `?token=` 换签名 cookie"。**
    token 只在 `GET /` 上被接受，换到的 cookie 绑 `hostname+port`、`HttpOnly`、`SameSite=Strict`、
@@ -308,7 +311,7 @@ android-dsh/
 - [x] **模式 A 全链路在真机上跑通（moto g54 / Android 15）**：app 菜单一键 → 脚本从 APK 写进 Termux
       （三个脚本与仓库**逐字节一致**，sha256 比对过）→ 装好/复用 DSH → 入口地址经剪贴板被 app 收下 →
       点开在 WebView 里渲染出完整 DSH 界面（见上方截图）
-- [x] **模式 B 在真机上跑通**：手机 → `192.168.0.105:8081`（PC 上的回环改写代理）→ 拿到 30 天会话 cookie
+- [x] **模式 B 在真机上跑通**：手机 → `192.168.1.105:8081`（PC 上的回环改写代理）→ 拿到 30 天会话 cookie
       → WebView 渲染出**桌面上那个 DSH** 的完整界面；无 token 时是 401（栅栏照样拦）
 - [x] **环境自检在真机上跑通**：Termux 在后台时报告仍能送达（走剪贴板）
 - [x] v0.1.2/0.1.3/0.1.4 在真机上安装并正常启动；可原地覆盖安装（同一签名密钥）
