@@ -88,3 +88,7 @@ adb shell dumpsys deviceidle whitelist +com.termux
 
 见 `docs/02-remote-pc.md`。要点：DSH 只监听 `127.0.0.1`，所以必须有转发者
 （SSH 隧道最干净；或 `tools/loopback-proxy.mjs` 免管理员但有明文代价）。
+
+**离开自己的网段也要用？** 见 [`05-anywhere-tailscale.md`](05-anywhere-tailscale.md)：
+用 Tailscale 组网 + `tailscale serve` 挂真证书 HTTPS 入口，模型通路走组网 IP 直连 `8083`。
+该文档同时给出**重启电脑后的照做清单**（Ollama 与 8083 代理都不自启）与**凭据过期后的重发命令**。

@@ -58,6 +58,27 @@ bash tunnel-to-pc.sh <PC 的 IP> <PC 用户名>
 想要"能远程访问又不要这些代价"，正确做法是 B1，或在 PC 上自己架一个带 TLS 与认证的反向代理并
 在 DSH 侧用 `--trusted-host` 显式声明该 authority（本项目不内置这种配置）。
 
+### B3 · Tailscale 组网 + `tailscale serve`（**2026-09-25 建成，跨网段（出门在外）走这条**）
+
+B1/B2 的前提都是"手机和 PC 在同一个局域网"。要**离开自己的网段也能用**，本仓库现在采用组网方案
+（完整配方与实测数字见 [`docs/05-anywhere-tailscale.md`](docs/05-anywhere-tailscale.md)）：
+
+- **传输**：tailnet 内 WireGuard **端到端加密**，打洞成功即点对点直连（实测 PC→手机 35 ms），
+  失败才退化到 DERP 中继（实测香港 294 ms / 东京 272 ms），中继也只看得到密文；
+- **入口**：`tailscale serve --https=443` 给 `127.0.0.1:3080` 挂一个**真证书的 HTTPS 域名**
+  （`https://<主机名>.<你的 tailnet>.ts.net/`），**仅组网内可达**——**绝不启用 Funnel**（那才会暴露到公网）；
+- **不绕过安全栅栏**：实测 `tailscale serve` **原样保留 Host 头**，所以做法是**显式声明**该 authority
+  （`dsh web --trusted-host <主机名>.<你的 tailnet>.ts.net`），而不是像 B2 那样把 Host/Origin 改写成 loopback；
+  cookie 仍按主机名绑定、`/api` 仍经 Host/Origin 栅栏，两层都在；
+- **凭据发放**：`tools/dsh-remote-login.mjs` 用 `~/.dsh` 里**持久化的签名密钥**签一张 30 天会话 cookie
+  （等价于启动时那串 token 的效果），经一个**带一次性口令、只监听 127.0.0.1、限时自动退出**的入口页
+  种进手机浏览器；入口页用完立刻 `tailscale serve --https=<port> off` 撤掉。
+  ⚠ 发给手机时该 cookie 用 `SameSite=Lax`（实测 `Strict` 在 Android 从书签/intent 发起的顶层导航里
+  **不会被发送**）；它只对顶层 GET 放行，危险操作走的 POST/WS 不受影响；
+- **残余代价**（用之前请知情）：① 依赖 Tailscale 的账号与控制面（境外服务，本次实测国内可直连）；
+  ② Android 同时只允许一个 VPN 服务，**组网与翻墙 VPN 互斥**；
+  ③ 任何能在你的 tailnet 里说话的设备都够得着这个入口——**用 tailnet ACL 收紧，别把设备随便分享**。
+
 ## 其它注意
 
 - app 声明了 `android:usesCleartextTraffic="true"`：**必需**，因为 DSH 官方只跑 loopback HTTP。
