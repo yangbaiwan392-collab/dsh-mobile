@@ -1,4 +1,4 @@
-# 探测"哪个 DSH 版本能从镜像解析安装" —— 官方某个发布可能引用不存在的子包版本（发坏了），
+﻿# 探测"哪个 DSH 版本能从镜像解析安装" —— 官方某个发布可能引用不存在的子包版本（发坏了），
 # 装错版本会在手机上卡在 npm ETARGET。本脚本用 --dry-run 只解析不下载，几秒出结论。
 #
 # 用法：powershell -File tools\probe-dsh-versions.ps1 [-Registry https://registry.npmmirror.com]

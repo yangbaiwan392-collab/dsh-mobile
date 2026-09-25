@@ -1,4 +1,4 @@
-# 构建 APK 的唯一入口（本机工具链固定在 E:，不在 PATH 里，所以必须经这个脚本）。
+﻿# 构建 APK 的唯一入口（本机工具链固定在 E:，不在 PATH 里，所以必须经这个脚本）。
 #
 # 用法：
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-apk.ps1              # 等价于 assembleDebug

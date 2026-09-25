@@ -10,6 +10,8 @@
 *.bat text eol=crlf
 
 # PowerShell 用 LF 即可（PowerShell 5.1 与 pwsh 都能读）
+# 注意：`.ps1` 还必须存成 **UTF-8 带 BOM**（本文件管不了 BOM）—— 5.1 读无 BOM 的脚本会用系统 ANSI
+# 代码页，在 ACP 不是 UTF-8 的机器上脚本里的中文会全变乱码；由 tools/check-contracts.ps1 的契约 8 把关。
 *.ps1 text eol=lf
 
 # 二进制：别做任何行尾处理

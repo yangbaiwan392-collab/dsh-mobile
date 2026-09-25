@@ -1,4 +1,4 @@
-# Android 工具链位置的**唯一事实源**（其它脚本都 dot-source 本文件）。
+﻿# Android 工具链位置的**唯一事实源**（其它脚本都 dot-source 本文件）。
 #
 # 换机器：设一个环境变量即可，别去改各个脚本：
 #   $env:DSH_ANDROID_TOOLCHAIN = 'D:\Android'

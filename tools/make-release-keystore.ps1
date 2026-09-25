@@ -1,4 +1,4 @@
-# make-release-keystore.ps1 — 生成**正式分发**用的签名密钥（一次性；生成后请备份到安全的地方）
+﻿# make-release-keystore.ps1 — 生成**正式分发**用的签名密钥（一次性；生成后请备份到安全的地方）
 #
 # 为什么需要它：仓库里的 `signing/debug.keystore` 是**调试**密钥，口令是公开的
 # （`android`/`androiddebugkey`，见 SECURITY.md），任何拿到源码的人都能拿它签一个"看起来是同一个 app"的包。

@@ -1,4 +1,4 @@
-# 把 _dl 里下好的 zip 展开成可用的 SDK / JDK / Gradle 布局，并逐项验证。
+﻿# 把 _dl 里下好的 zip 展开成可用的 SDK / JDK / Gradle 布局，并逐项验证。
 #
 # 只负责"布局 + 验证"，不负责下载（那是 fetch-toolchain.ps1 的事）。
 # 幂等：已展开的目录会跳过。

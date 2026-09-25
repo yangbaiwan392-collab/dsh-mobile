@@ -1,4 +1,4 @@
-# 拉 Android 工具链（全部走国内镜像；本机 storage.googleapis.com 只有 ~80 KB/s，别直连）
+﻿# 拉 Android 工具链（全部走国内镜像；本机 storage.googleapis.com 只有 ~80 KB/s，别直连）
 #
 # 这是**唯一**存放工具链 URL 的地方 —— 换版本只改这个文件。
 # 只负责"下载 + 校验是个能打开的 zip"，不负责展开布局（那是 install-toolchain.ps1 的事）。

@@ -1,4 +1,4 @@
-# 端到端验证模式 B：回环改写代理能不能让"非 loopback 的 Host"访问到 DSH。
+﻿# 端到端验证模式 B：回环改写代理能不能让"非 loopback 的 Host"访问到 DSH。
 #
 # 全部用**隔离的 DSH_HOME + 隔离端口**，绝不碰用户正在跑的 3080（那是本 agent 自己坐的树枝）。
 # 用法：powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-mode-b.ps1

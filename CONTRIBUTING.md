@@ -61,6 +61,9 @@ Windows / IDE 同理用 `android\gradlew.bat`；`tools/build-apk.ps1` 也会**�
 5. **token、URL、密钥不进源码**：入口存 DataStore/文件，密钥用 `tools/make-debug-keystore.ps1` 生成（且被 gitignore）。
 6. **新增用户可见行为时**：同步更新 `docs/` 与 `CHANGELOG.md`；跨工件的字符串（组件名、extra 键、脚本路径）
    请交给 `check-contracts.ps1` 而不是靠人眼。
+7. **`.ps1` 文件必须存成「UTF-8 带 BOM」**（脚本里全是中文；PowerShell 5.1 读无 BOM 的脚本会用系统
+   ANSI 代码页，在 ACP 不是 UTF-8 的机器上中文全变乱码）。有些编辑器/工具链会**悄悄把 BOM 去掉**，
+   所以改完 `.ps1` 后跑一次 `tools/check-contracts.ps1` —— 契约 8 就是专门抓这个的。
 
 ## 提交信息
 

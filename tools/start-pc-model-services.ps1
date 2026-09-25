@@ -1,4 +1,4 @@
-# start-pc-model-services.ps1 — 把「手机能用的模型通路」两件套拉起来（幂等）
+﻿# start-pc-model-services.ps1 — 把「手机能用的模型通路」两件套拉起来（幂等）
 #
 # 手机上的 DSH（Termux 里那个）本身不需要网络，它的「脑子」在家里这台 PC 上：
 #

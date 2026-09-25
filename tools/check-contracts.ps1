@@ -1,4 +1,4 @@
-# 跨文件契约检查：把"只有真机才能发现"的跨工件不一致，提前变成一条能跑的红/绿。
+﻿# 跨文件契约检查：把"只有真机才能发现"的跨工件不一致，提前变成一条能跑的红/绿。
 #
 # 来历：termux/start-dsh.sh 里 `am start -n app.dsh.mobile/.MainActivity` 写错了组件名
 # （真实类在 app.dsh.mobile.ui.MainActivity），而它后面带 `|| true`，所以在手机上会**静默失败**——
@@ -110,10 +110,37 @@ $syncTool = Join-Path $PSScriptRoot 'sync-bootstrap-embed.ps1'
 if (-not (Test-Path $syncTool)) {
     $fail.Add('找不到 tools/sync-bootstrap-embed.ps1（契约 7 依赖它）')
 } else {
-    $syncOut = & powershell -NoProfile -ExecutionPolicy Bypass -File $syncTool -Check 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        $fail.Add('phone-bootstrap.sh 内嵌的 start-dsh.sh 与真身不一致（跑 tools/sync-bootstrap-embed.ps1 同步）')
+    # **同进程**调用，不要另起 powershell 子进程。
+    # 踩过的坑（2026-09-25，CI 两次红，本地却过）：老写法是
+    #   $syncOut = & powershell -NoProfile -File $syncTool -Check 2>&1
+    #   if ($LASTEXITCODE -ne 0) { $fail.Add('…与真身不一致…') }
+    # CI 上子进程返回了非零，而它的输出被 $syncOut 吞掉、从不打印 ——
+    # 报告里只剩一句"与真身不一致"，看不出真实原因（这正是那条失败信息误导人的地方）。
+    # 改成本进程调用后：判定逻辑只有一份、跨 PowerShell 版本行为一致，
+    # 失败原因（含两边的字符数）由下面的 catch 直接写进报告。
+    try {
+        & $syncTool -Check
+    } catch {
+        $fail.Add("phone-bootstrap.sh 内嵌的 start-dsh.sh 与真身不一致；$($_.Exception.Message)")
     }
+}
+
+# ---- 契约 8：仓库里的 .ps1 必须带 UTF-8 BOM ----
+# 为什么值得一条契约（2026-09-25，两个 CI run 换来的）：Windows PowerShell 5.1 读**无 BOM**的
+# 脚本时用的是系统 ANSI 代码页，不是 UTF-8。本机 ACP=utf-8 所以一直没露馅，
+# 换一台 ACP 不是 UTF-8 的机器（CI runner / 英文 Windows），脚本里的中文全成乱码 ——
+# 报错信息看不懂、还可能与子进程/编码相关的行为不一致。BOM 是让 5.1 也认出 UTF-8 的唯一办法。
+# 注：这条只查仓库里已有的 .ps1，不查 .git（不要自作聪明去扫别人的东西）。
+$psBomFail = @()
+foreach ($f in (Get-ChildItem -Path $root -Filter '*.ps1' -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' })) {
+    $head = [System.IO.File]::ReadAllBytes($f.FullName)
+    if ($head.Length -lt 3 -or $head[0] -ne 0xEF -or $head[1] -ne 0xBB -or $head[2] -ne 0xBF) {
+        $psBomFail += $f.FullName.Substring($root.Length + 1).Replace('\', '/')
+    }
+}
+if ($psBomFail.Count -gt 0) {
+    $fail.Add(('这些 .ps1 缺少 UTF-8 BOM（PowerShell 5.1 在非 UTF-8 代码页的机器上会把中文读成乱码）：{0}' -f ($psBomFail -join ', ')))
 }
 
 # ---- 输出 ----

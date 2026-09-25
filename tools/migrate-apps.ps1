@@ -1,4 +1,4 @@
-# 把旧手机上**用户安装的 app**（含 X / YouTube / ChatGPT / Telegram / VPN 这类）整包搬到新手机。
+﻿# 把旧手机上**用户安装的 app**（含 X / YouTube / ChatGPT / Telegram / VPN 这类）整包搬到新手机。
 #
 # 为什么需要：换机工具（含 Google 的"复制应用"）**不会**可靠地搬侧载/非 Play 应用的 APK，
 # 而这些 app 恰恰要"先挂 VPN 才能下载"—— 从自己手机上拉包最省事，也避免装到不对劲的版本。

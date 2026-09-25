@@ -64,6 +64,14 @@
   （**app 与脚本其实都没问题**，是本地服务没了）。
   → `termux/start-dsh.sh` 现在先 `termux-wake-lock`：Termux 转为**前台服务**（常驻一条通知），
   清后台不再能杀掉它。
+- ★ **契约 7 在 CI 上假红**（本地全过、push 两次全红）：它是**另起一个 `powershell` 子进程**跑
+  `sync-bootstrap-embed.ps1 -Check`，用 `$LASTEXITCODE` 判成败，而子进程的输出被 `$syncOut = … 2>&1`
+  接走后**从不打印** —— 于是报告里只剩一句"内嵌的 start-dsh.sh 与真身不一致"，
+  既说不出差在哪、也指错了方向（真身与内嵌副本其实一模一样）。
+  → 改为**同进程**调用：判定逻辑仍只有一份，失败原因（含两边字符数）直接进报告；
+  顺带新增**契约 8：仓库里的 `.ps1` 必须带 UTF-8 BOM**（PowerShell 5.1 读无 BOM 脚本用系统 ANSI 代码页，
+  本机 ACP=utf-8 一直没露馅，换台机器中文就成乱码 —— 契约 8 上线当次就抓到了被编辑器去掉 BOM 的那个文件）；
+  内嵌副本与真身的比对也**先归一 CRLF 再比**（契约要的是内容一致，不是字节一致）。
 - `tools/test-termux-scripts.sh`：curl 预检那条不再写死 `apt full-upgrade`（实现是 `apt -y full-upgrade`，
   测试与实现不同步导致长期红），改为只断言"存在一条 apt 的 full-upgrade 指令"；现 **4 个用例 / 22 项全过**。
 - ★ **自检报告会把入口地址的 token 原样打出来**：`[10] 日志里的入口地址` 直接 `grep` 了 `.dsh-web.log`，

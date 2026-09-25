@@ -1,4 +1,4 @@
-# 把仓库里的脚本无损推到手机 Termux（避开三个真实的坑）：
+﻿# 把仓库里的脚本无损推到手机 Termux（避开三个真实的坑）：
 #   1) PowerShell → adb 的传参会把单引号吃掉（重定向就跑到 shell 用户下 → Permission denied）
 #      → 不用引号，改用 `run-as ... tee <path>`，重定向交给 tee；
 #   2) PowerShell 管道默认按 ASCII/带 BOM 编码 → 中文被破坏、脚本首行多出 BOM

@@ -1,4 +1,4 @@
-# 新手机开箱：一条命令把「3 个 APK + 一键装 DSH + 用 PC 的 Ollama」全办完。
+﻿# 新手机开箱：一条命令把「3 个 APK + 一键装 DSH + 用 PC 的 Ollama」全办完。
 #
 # 用法（手机已开无线调试并与 PC 同网）：
 #   powershell -File tools\new-phone-setup.ps1 -Ip 192.168.1.100 -Port 46393
