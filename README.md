@@ -614,6 +614,19 @@ Android 13 后台限制很凶：`setup-dsh.sh` 会 `termux-wake-lock` 拿唤醒�
 不用了就 `termux-wake-unlock`。日志在 `~/.dsh-web.log`，token URL 只在启动时打印一次。
 </details>
 
+附加：
+## 相关：本地模型实测数据
+
+做这个客户端的过程中，我在同一台机器上把一批本地模型真跑了一遍 ——
+**RTX 5060 Ti 16 GB / i7-14700F / 32 GB**，同一套提示词、`num_ctx 32768`。
+
+每条都记了：速度（tok/s 或墙钟秒）、**峰值显存**、**CPU 溢出层占比**、量化档、
+运行时（ollama / Docker / ComfyUI）、**样本输出**与**完整提示词**。
+
+https://tuiceday.cn/lab/
+
+跟本仓库一样，那边也守着同一条规矩：**数字不是我说的，是你能自己跑出来的**。
+如果你也在 16 GB 这个档位上跑模型，那份数据大概比这篇 README 更有用。
 ---
 
 ## 参与贡献
