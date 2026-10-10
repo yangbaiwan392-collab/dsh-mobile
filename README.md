@@ -56,6 +56,11 @@
 |---|---|---|
 | ![入口列表](docs/images/phone-profile-list.png) | ![DSH 界面](docs/images/phone-dsh-ui.png) | ![环境自检](docs/images/phone-diagnostics.png) |
 
+**横屏**
+
+| 入口列表 | DSH 界面 |
+|---|---|
+| ![入口列表（横屏）](docs/images/phone-profile-list-land.png) | ![DSH 界面（横屏）](docs/images/phone-dsh-ui-land.png) |
 三张都是 **moto Y70(XT2611-1)（Android 16）** 上的实拍：左边是模式 A 跑通后 app 自动收到的「手机本地」入口
 （Termux 脚本回传的，含 token）；中间是同一条链路的终点 —— 真正的 DSH Web 界面在 app 的 WebView 里渲染；
 右边是在 Termux 处于后台的情况下拿到的自检报告（走剪贴板通道，见下文）。
